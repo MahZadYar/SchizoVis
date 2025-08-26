@@ -1,4 +1,4 @@
-%% SchizoViz v3 Demonstration Script
+%% SchizoVis v3 Demonstration Script (renamed from SchizoViz)
 % Maintainer: Maziar Moussavi
 
 clear; clc; close all;
@@ -6,7 +6,7 @@ nMin = 1; nMax = 101; nStepSize = 2; baseRadix = 12; precisionOrder = 1500; mode
 exportFigure=false; exportVideo=false; exportNumber=true; exportGridVideo=false; %#ok<NASGU>
 videoLayers=inf; videoFrameRate=15; videoView='top'; videoLossless=true; videoResolution=[1080 1080]; videoLastN=inf; videoDynamicColors=true; %#ok<NASGU>
 exportFolder = fullfile(pwd,'outputs'); if ~isfolder(exportFolder); mkdir(exportFolder); end
-FileName = sprintf('SchizoViz_n%d-%d_b%d_p%d', nMin, nMax, baseRadix, precisionOrder);
+FileName = sprintf('SchizoVis_n%d-%d_b%d_p%d', nMin, nMax, baseRadix, precisionOrder);
 nList = nMin:nStepSize:nMax; [fVals, sVals] = SchizoGen(nList, baseRadix); %#ok<NASGU>
 p_min = -abs(precisionOrder); s_max_sym = sVals(end); global_p_max = ceil(double(log(vpa(s_max_sym))/log(baseRadix))); exponents = global_p_max:-1:p_min;
 digitsMat = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode);

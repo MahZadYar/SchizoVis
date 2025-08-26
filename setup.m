@@ -1,5 +1,5 @@
 function setup()
-% setup  Add SchizoViz source to MATLAB path.
+% setup  Add SchizoVis (renamed from SchizoViz) source to MATLAB path.
 %   Run this once per session (or add to startup.m) before using examples/tests.
 
 rootDir = fileparts(mfilename('fullpath'));

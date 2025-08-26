@@ -1,4 +1,4 @@
-SchizoViz (v3)
+SchizoVis (v3)
 =================
 
 Author: Maziar Moussavi  
@@ -7,7 +7,7 @@ Languages: MATLAB (core algorithms + visualization)
 
 Summary
 -------
-SchizoViz visualizes the evolving square root of the "schizophrenic number" sequence:
+SchizoVis (renamed from SchizoViz) visualizes the evolving square root of the "schizophrenic number" sequence:
 
   f(0) = 0,  f(k) = b * f(k-1) + k
 
@@ -57,7 +57,7 @@ Quick Start
 1. Clone the repository:
 
   ```bash
-  git clone https://github.com/YOUR_GITHUB_USERNAME/SchizoViz.git
+  git clone https://github.com/YOUR_GITHUB_USERNAME/SchizoVis.git
   ```
 2. In MATLAB, from the repo root run:
 
@@ -92,7 +92,7 @@ p_min = -abs(precisionOrder);
 global_p_max = ceil(double(log(vpa(sVals(end)))/log(baseRadix)));
 exponents = global_p_max:-1:p_min;
 digitsMat = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode);
-PolarDigitVis(exponents, digitsMat, baseRadix, 'Title', 'SchizoViz Sample');
+PolarDigitVis(exponents, digitsMat, baseRadix, 'Title', 'SchizoVis Sample');
 ```
 
 Parameter Notes
@@ -148,9 +148,9 @@ Planned / Ideas
 Citation
 --------
 
-If you use SchizoViz in research or publications, please cite (CITATION.cff provided):
+If you use SchizoVis (formerly SchizoViz) in research or publications, please cite (CITATION.cff provided):
 
-Moussavi, M. (2025). SchizoViz (Version 3). GitHub repository: [https://github.com/YOUR_GITHUB_USERNAME/SchizoViz](https://github.com/YOUR_GITHUB_USERNAME/SchizoViz)
+Moussavi, M. (2025). SchizoVis (Version 3). GitHub repository: [https://github.com/YOUR_GITHUB_USERNAME/SchizoVis](https://github.com/YOUR_GITHUB_USERNAME/SchizoVis)
 
 License
 -------
