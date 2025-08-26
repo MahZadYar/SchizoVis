@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: SchizoViz
+message: If you use this software, please cite it as below.
+type: software
+authors:
+  - family-names: Moussavi
+    given-names: Maziar
+version: 3.0.0
+date-released: 2025-08-26
+repository-code: https://github.com/<your-account>/SchizoViz
+license: MIT
+abstract: >-
+  SchizoViz visualizes the layered digit structure of sqrt(f(n)), where
+  f(k) = b*f(k-1)+k generalizes decimal concatenation to base b. Version 3
+  introduces modular core functions, batch exponent expansion, and enhanced
+  visualization & export utilities.

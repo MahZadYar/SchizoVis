@@ -1,0 +1,26 @@
+# MATLAB / SchizoViz ignore rules
+*.asv
+*.m~
+*.fig
+*.mat
+*.mex*
+*.log
+*.tmp
+*.avi
+*.mp4
+*.mov
+*.png
+*.jpg
+*.tif
+*.gif
+*.DS_Store
+Thumbs.db
+outputs/
+videos/
+export*/
+/.vs/
+/.idea/
+*.code-workspace
+
+# Unit test artifacts
+junit*.xml
