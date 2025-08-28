@@ -2,8 +2,8 @@
 clear; clc; close all;
 
 % Parameters
-nMin = 001; nMax = 302; nStepSize = 1; %#ok<NASGU>
-baseRadix = 2.5; 
+nMin = 001; nMax = 101; nStepSize = 2; %#ok<NASGU>
+baseRadix = 2; 
 precisionOrder = 01000; 
 mode = "residual"; % options: "digits", "residual"
 
@@ -228,7 +228,7 @@ if exportFigure
 			schizoNumber = sVals(end);
 			gridPathFig = fullfile(exportFolder, sprintf('%s_grid.fig', FileName));
 			gridPathPng = fullfile(exportFolder, sprintf('%s_grid.png', FileName));
-			GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', false, 'Show', true);
+			GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', false, 'Show', true);
 			try
 				figGStatic = gcf; savefig(figGStatic, gridPathFig); exportgraphics(figGStatic, gridPathPng, 'Resolution', 150);
 				fprintf('SchizoVis: grid figure exported -> %s , %s\n', gridPathFig, gridPathPng);
@@ -350,7 +350,7 @@ if VisGrid
 	try
 		schizoNumber = sVals(end);
 		% Show-only call (no file) - static grid view of last sqrt
-		GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', true, 'Show', true);
+		GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', true, 'Show', true);
 		% Dock the created figure if any
 		try
 			figGrid = gcf;

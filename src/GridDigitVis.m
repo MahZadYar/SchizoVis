@@ -12,6 +12,7 @@ function outPath = GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)
 %   'Square'         : true to force square layout (default true)
 %   'Show'           : show figure (default false)
 %   'MaxSide'        : target figure side in pixels (default 1000)
+%   'Mode'           : 'digits' (default) or 'residual' (continuous base expansion values)
 %
 % NOTE: For very large integer parts this performs symbolic division; may be slow.
 
@@ -23,6 +24,7 @@ opts.PadValue = NaN;
 opts.Square = true;
 opts.Show = false;
 opts.MaxSide = 1000;
+opts.Mode = 'digits';
 if ~isempty(varargin)
     for k=1:2:numel(varargin)
         key = lower(string(varargin{k})); val = varargin{k+1};
@@ -35,6 +37,7 @@ if ~isempty(varargin)
             case 'square';         opts.Square = logical(val);
             case 'show';           opts.Show = logical(val);
             case 'maxside';        opts.MaxSide = double(val);
+            case 'mode';           opts.Mode = char(lower(string(val)));
             otherwise; warning('GridDigitViz:unknownOption','Unknown option %s', key);
         end
     end
@@ -71,48 +74,83 @@ else
     opts.Colormap = interp1(old, opts.Colormap, new);
 end
 
-% --- Integer digit extraction ---
-% Integer / fractional separation (beta base allowed)
-intPart = floor(symVal);
-fracPart = symVal - intPart;
+mode = lower(string(opts.Mode));
+if ~(mode == "digits" || mode == "residual")
+    warning('GridDigitViz:mode','Unknown Mode %s -> falling back to digits.', opts.Mode);
+    mode = "digits";
+end
 
-intDigits = [];
-if intPart == 0
-    intDigits = 0;
+% Generate value sequence according to mode
+if mode == "digits"
+    % Integer / fractional separation (beta base allowed) into discrete digits
+    intPart = floor(symVal);
+    fracPart = symVal - intPart;
+    intDigits = [];
+    if intPart == 0
+        intDigits = 0;
+    else
+        tmp = intPart; loopCap = 5e5; it=0;
+        while tmp > 0 && it < loopCap
+            q = floor(tmp / baseRadix);
+            r = tmp - q*baseRadix;
+            d = double(floor(r));
+            intDigits = [d intDigits]; %#ok<AGROW>
+            tmp = q; it = it + 1;
+        end
+        if it >= loopCap
+            warning('GridDigitViz:intLoopCap','Integer digit extraction reached loop cap; result may be incomplete.');
+        end
+    end
+    fracDigits = [];
+    if opts.FractionDigits > 0 && fracPart ~= 0
+        decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
+        fnum = vpa(fracPart, decPrec);
+        for k=1:opts.FractionDigits
+            fnum = fnum * baseRadix;
+            d = floor(fnum);
+            fracDigits(end+1) = double(d); %#ok<AGROW>
+            fnum = fnum - d;
+        end
+    end
+    seqVals = [intDigits fracDigits];
 else
-    tmp = intPart;
-    % Use symbolic division; break on safety (loop cap)
-    loopCap = 5e5; it=0;
+    % Residual mode: capture residual values each step rather than discrete digits
+    % We still perform an expansion but store the residual BEFORE extracting digit.
+    intPart = floor(symVal);
+    fracPart = symVal - intPart;
+    seqVals = [];
+    % integer residual sweep (divide backwards?) -> for visualization, build forward digits but store normalized residual r/baseRadix
+    tmp = symVal;
+    loopCap = 5e5; it=0; stackInt = [];
     while tmp > 0 && it < loopCap
         q = floor(tmp / baseRadix);
-        r = tmp - q*baseRadix; % remainder in [0, baseRadix)
-        d = double(floor(r)); % digit in 0..floor(base)-1
-        intDigits = [d intDigits]; %#ok<AGROW>
+        r = tmp - q*baseRadix;
+        % store residual normalized to base span
+        stackInt = [double(r/baseRadix) stackInt]; %#ok<AGROW>
         tmp = q; it = it + 1;
     end
     if it >= loopCap
-    warning('GridDigitViz:intLoopCap','Integer digit extraction reached loop cap; result may be incomplete.');
+        warning('GridDigitViz:intLoopCap','Integer residual extraction loop cap reached.');
     end
+    % fractional residual sweep
+    if opts.FractionDigits > 0 && fracPart ~= 0
+        decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
+        fnum = vpa(fracPart, decPrec);
+        for k=1:opts.FractionDigits
+            fnum = fnum * baseRadix;
+            dWhole = floor(fnum);
+            resNorm = double((fnum - dWhole)); % already fractional part after removing digit
+            seqVals = [seqVals resNorm]; %#ok<AGROW>
+            fnum = fnum - dWhole;
+        end
+    end
+    seqVals = [stackInt seqVals];
+    if isempty(seqVals); seqVals = 0; end
 end
 
-% --- Fraction digits ---
-fracDigits = [];
-if opts.FractionDigits > 0 && fracPart ~= 0
-    % numeric high precision
-    decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
-    fnum = vpa(fracPart, decPrec);
-    for k=1:opts.FractionDigits
-    fnum = fnum * baseRadix;
-    d = floor(fnum);
-    fracDigits(end+1) = double(d); %#ok<AGROW>
-    fnum = fnum - d;
-    end
-end
-
-allDigits = [intDigits fracDigits];
-numDigits = numel(allDigits);
+numDigits = numel(seqVals);
 if numDigits == 0
-    allDigits = 0; numDigits=1;
+    seqVals = 0; numDigits = 1;
 end
 
 % Layout
@@ -129,12 +167,12 @@ end
 pad = rows*cols - numDigits;
 if pad > 0
     padVals = repmat(opts.PadValue,1,pad);
-    allDigitsPadded = [allDigits padVals];
+    seqPadded = [seqVals padVals];
 else
-    allDigitsPadded = allDigits;
+    seqPadded = seqVals;
 end
 
-img = reshape(allDigitsPadded, cols, rows)'; % rows x cols
+img = reshape(seqPadded, cols, rows)'; % rows x cols
 
 % Figure
 vis = 'off'; if opts.Show, vis='on'; end
@@ -147,15 +185,27 @@ if opts.Transparent, set(ax,'Color','none'); end
 imgD = double(img);
 % clamp digits to valid range; leave NaN as-is
 validMask = ~isnan(imgD);
-imgD(validMask) = max(0, min(digitCount-1, floor(imgD(validMask))));
+if mode == "digits"
+    imgD(validMask) = max(0, min(digitCount-1, floor(imgD(validMask))));
+    caxisRange = [0 digitCount-1];
+else
+    % residuals: values assumed in [0,1)
+    imgD(validMask) = max(0,min(1,imgD(validMask)));
+    caxisRange = [0 1];
+end
 
 % Display image with NaN -> transparent; ensure first element maps to top-left
 imAlpha = validMask;
 imagesc(ax, imgD, 'AlphaData', imAlpha);
 set(ax,'YDir','reverse'); % first row at top
 axis(ax,'image'); axis(ax,'off');
-colormap(ax, opts.Colormap(1:digitCount,:));
-caxis(ax,[0 digitCount-1]);
+if mode == "digits"
+    colormap(ax, opts.Colormap(1:digitCount,:));
+else
+    % For residuals, ensure a sufficiently smooth map
+    colormap(ax, interp1(linspace(0,1,size(opts.Colormap,1)), opts.Colormap, linspace(0,1,256)));
+end
+caxis(ax,caxisRange);
 cb = colorbar(ax,'southoutside');
 ticks = 0:digitCount-1;
 cb.Ticks = ticks;
@@ -170,13 +220,27 @@ for i=1:numel(ticks)
     end
 end
 cb.TickLabels = cellstr(lbl);
-cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
+if mode == "digits"
+    cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
+else
+    cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
+    cb.Ticks = linspace(0,1,6);
+    cb.TickLabels = compose('%.2f',cb.Ticks);
+end
 
 if isempty(opts.Title)
-    if opts.FractionDigits > 0
-    ttl = sprintf('Schizo number sqrt(f(%d)) beta %.4g (frac %d)', nVal, baseRadix, opts.FractionDigits);
+    if mode == "digits"
+        if opts.FractionDigits > 0
+            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits (frac %d)', nVal, baseRadix, opts.FractionDigits);
+        else
+            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits', nVal, baseRadix);
+        end
     else
-    ttl = sprintf('Schizo number sqrt(f(%d)) beta %.4g', nVal, baseRadix);
+        if opts.FractionDigits > 0
+            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual (frac %d)', nVal, baseRadix, opts.FractionDigits);
+        else
+            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual', nVal, baseRadix);
+        end
     end
 else
     ttl = opts.Title;
