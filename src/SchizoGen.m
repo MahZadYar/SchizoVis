@@ -30,7 +30,7 @@ cumTerms = coeff * vb.^exponents;  % maxN x 1 symbolic where cumTerms(k) = f(k)
 fSym = cumTerms(nVec);          % pick values in input order
 
 
-% % Classic Method:
+% % Itterative Method:
 % f = sym(0);
 % store = sym(zeros(numel(requested),1));
 % reqIdxMap = containers.Map(num2cell(requested), num2cell(1:numel(requested)));
@@ -46,12 +46,16 @@ fSym = cumTerms(nVec);          % pick values in input order
 % for i=1:numel(nVec)
 %     fSym(i) = store(reqIdxMap(nVec(i)));
 % end
-
-sSym = sqrt(fSym); % purely symbolic sqrt
+% Use a symbolic half-power or the element-wise sqrt for symbolic arrays.
+% The matrix-power operator ^ requires square matrices; here fSym is a vector
+% (one f(k) per input n), so use element-wise operations. Using `sqrt` works
+% for symbolic arrays and is clearer.
+rootPower = sym(1)/2;       % symbolic 1/2 for explicitness
+% element-wise symbolic power avoids using matrix ^ which requires square matrices
+sSym = fSym .^ rootPower;   % per-element symbolic half-power
 
 fVals = reshape(fSym, size(n));
 sVals = reshape(sSym, size(n));
 if isscalar(n)
     fVals = fVals(1); sVals = sVals(1);
-end
 end
