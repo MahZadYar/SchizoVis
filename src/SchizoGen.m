@@ -5,10 +5,12 @@ function [fVals, sVals] = SchizoGen(n, baseRadix)
 
 arguments
     n double {mustBePositive}
-    baseRadix double {mustBeInteger, mustBeGreaterThanOrEqual(baseRadix,2)} = 10
+    baseRadix double {mustBeGreaterThanOrEqual(baseRadix,2)} = 10 % allow non-integer (beta) bases >=2
 end
 if any(n~=floor(n)), error('n must be integer-valued'); end
 
+% Treat baseRadix symbolically (may be non-integer). For non-integer bases this
+% defines a beta-expansion style sequence f(k)=beta*f(k-1)+k.
 vb = sym(baseRadix);
 nVec = round(n(:));
 maxN = max(nVec);

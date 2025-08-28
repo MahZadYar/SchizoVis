@@ -59,9 +59,14 @@ else
     end
 end
 
-% Angles (vectorized). In residual mode values still in [0, baseRadix)
+% Determine digit alphabet size (integer spokes) for integer / beta base
+digitCount = floor(baseRadix);
+if digitCount < 2
+    error('PolarDigitVis:digitCount','floor(baseRadix) must be >= 2');
+end
+% Angles (vectorized). In digits mode digits in 0..digitCount-1. Scale by digitCount.
 t_coords = tic;
-theta = (digitsMat / baseRadix) * 2*pi; % LxM
+theta = (digitsMat / digitCount) * 2*pi; % LxM
 % Broadcast radii to layers
 rMat = repmat(r_vals, L,1);
 xMat = cos(theta) .* rMat;
@@ -135,8 +140,8 @@ plot3(ax, clockR*cos(thCirc), clockR*sin(thCirc), ones(size(thCirc))*zRange(1), 
 
 % Digit spokes & labels
 if S.DigitGuides
-    whole_angles = (0:baseRadix-1)/baseRadix * 2*pi;
-    for d = 0:baseRadix-1
+    whole_angles = (0:digitCount-1)/digitCount * 2*pi;
+    for d = 0:digitCount-1
         ang = whole_angles(d+1);
         plot3(ax, [0 clockR*cos(ang)], [0 clockR*sin(ang)], [zRange(1) zRange(1)], '-', 'Color',[0.5 0.5 0.5], 'LineWidth', 0.6);
         if d < 10, ds = num2str(d); else, ds = char('A'+(d-10)); end
@@ -164,8 +169,8 @@ tickLen = clockR * 0.1;
 Xticks = [];
 Yticks = [];
 Zticks = [];
-for d = 0:baseRadix-1
-    ang = (d/baseRadix) * 2*pi;
+for d = 0:digitCount-1
+    ang = (d/digitCount) * 2*pi;
     cang = cos(ang); sang = sin(ang);
     for r = r_sample
         r_inner = max(0, r - tickLen);
@@ -180,8 +185,8 @@ if ~isempty(Xticks)
 end
 
 % Repetition guides: limit number and vectorize
-if S.RepeatGuides && baseRadix>2
-    repBase = baseRadix-1;
+if S.RepeatGuides && digitCount>2
+    repBase = digitCount-1;
     maxRep = inf; % clamp to reasonable number of repetition guides
     nRep = min(repBase, maxRep);
     repIdx = unique(round(linspace(1, repBase, nRep)));

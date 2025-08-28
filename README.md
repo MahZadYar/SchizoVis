@@ -19,7 +19,7 @@ v3 refactors the exploratory v1/v2 scripts into modular, testable components:
 
 * Modular functions in `src/`: `SchizoGen`, `ExpoExpand`, `PolarDigitVis`, `GridDigitViz`.
 * Efficient vectorized expansion of multiple sqrt values across a shared exponent lattice (`ExpoExpand`).
-* Generalized numeral base (any b >= 2) instead of fixed decimal logic.
+* Generalized numeral base (any real beta >= 2). For non-integer beta a beta-expansion with digit alphabet 0..floor(beta)-1 is used.
 * Two visualization modalities: stacked polar digit/residual plot and square grid digit image export.
 * Optional dynamic coloring & sliding window video rendering.
 * Cleaner separation between generation, expansion, and rendering stages.

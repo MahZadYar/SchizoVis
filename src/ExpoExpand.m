@@ -12,7 +12,7 @@ arguments
     sVals {mustBeNonempty}
     exponents double {mustBeNonempty}
     precisionOrder double {mustBeNonnegative, mustBeInteger} %#ok<INUSA>
-    baseRadix double {mustBeInteger, mustBeGreaterThanOrEqual(baseRadix,2)}
+    baseRadix double {mustBeGreaterThanOrEqual(baseRadix,2)} % allow non-integer base (beta)
     mode {mustBeTextScalar}
 end
 
@@ -27,9 +27,8 @@ L = numel(sVals);
 M = numel(exponents);
 
 % Use the global symbolic precision (set by digits(n) in the driver).
-% The driver sets numDigits = precisionOrder + nMax + 10 and calls digits(numDigits).
 currDigits = digits; %#ok<DIGIT>
-fprintf('ExpoExpand: using global symbolic precision digits=%d (driver-controlled)\n', currDigits);
+fprintf('ExpoExpand: using global symbolic precision digits=%d (driver-controlled, beta-base)\n', currDigits);
 
 % Optional validation (lightweight). Set enableValidation=true to compare a single row with higher precision.
 enableValidation = true; %#ok<NASGU> (user can toggle manually)
@@ -50,6 +49,7 @@ digitsOrResiduals = zeros(L, M);
 for j = 1:M
     intParts = floor(residuals); % Lx1 symbolic ints
     if mode == "digits"
+        % For non-integer base (beta-expansion) digit alphabet is 0..floor(beta)-1
         digitsOrResiduals(:,j) = double(intParts);
     else
         digitsOrResiduals(:,j) = double(residuals);
