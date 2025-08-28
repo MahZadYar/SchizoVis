@@ -214,7 +214,47 @@ end
 imAlpha = validMask;
 imagesc(ax, imgD, 'AlphaData', imAlpha);
 set(ax,'YDir','reverse'); % first row at top
-axis(ax,'image'); axis(ax,'off');
+axis(ax,'image');
+
+% If multi-row, show axis ticks: y -> n values, x -> exponent positions
+if multi
+    % show axes
+    axis(ax,'on');
+    % y ticks correspond to rows (1..nCount) and label with provided nVal
+    try
+        yTicks = 1:size(img,1);
+        % nVal may be numeric array or symbolic; convert to numeric/str
+        if isnumeric(nVal)
+            yLabels = arrayfun(@(x) sprintf('%d',x), nVal, 'UniformOutput', false);
+        else
+            yLabels = arrayfun(@(x) char(x), nVal, 'UniformOutput', false);
+        end
+        set(ax,'YTick',yTicks,'YTickLabel',yLabels);
+    catch
+        % fallback: show numeric indices only
+        set(ax,'YTick',1:size(img,1));
+    end
+    % compute exponent mapping: assume each row has integer digits then fractional digits
+    try
+        seqLens = cellfun(@numel, seqCell);
+        intCounts = max(0, seqLens - opts.FractionDigits);
+        maxInt = max(intCounts);
+        leftExp = maxInt - 1;
+        maxLenLocal = size(img,2);
+        colExps = leftExp - (0:(maxLenLocal-1));
+        % choose up to 8 xticks evenly
+        nTicks = min(8, maxLenLocal);
+        xTickPos = unique(round(linspace(1, maxLenLocal, nTicks)));
+        xTickLabels = arrayfun(@(p) sprintf('p%d',p), colExps(xTickPos), 'UniformOutput', false);
+        set(ax,'XTick', xTickPos, 'XTickLabel', xTickLabels);
+        xlabel(ax,'exponent (p)'); ylabel(ax,'n');
+    catch
+        % fallback: show simple column indices
+        set(ax,'XTick',1:size(img,2));
+    end
+else
+    axis(ax,'off');
+end
 if mode == "digits"
     colormap(ax, opts.Colormap(1:digitCount,:));
 else
@@ -248,33 +288,35 @@ else
     end
 end
 
+% Build a TeX-friendly title with root symbol and compact params
 if isempty(opts.Title)
     if ~multi
         if mode == "digits"
             if opts.FractionDigits > 0
-                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits (frac %d)', nVal, baseRadix, opts.FractionDigits);
+                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g\\; frac=%d \\; digits', nVal, baseRadix, opts.FractionDigits);
             else
-                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits', nVal, baseRadix);
+                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g \\; digits', nVal, baseRadix);
             end
         else
             if opts.FractionDigits > 0
-                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual (frac %d)', nVal, baseRadix, opts.FractionDigits);
+                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g\\; frac=%d \\; residual', nVal, baseRadix, opts.FractionDigits);
             else
-                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual', nVal, baseRadix);
+                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g \\; residual', nVal, baseRadix);
             end
         end
     else
         nMinLocal = min(nVal); nMaxLocal = max(nVal);
         if mode == "digits"
-            ttl = sprintf('Schizo sqrt(f(n)) beta %.4g digits, n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
+            ttl = sprintf('\\surd f(n) \\; |\\beta=%.4g \\; digits \\; n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
         else
-            ttl = sprintf('Schizo sqrt(f(n)) beta %.4g residual, n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
+            ttl = sprintf('\\surd f(n) \\; |\\beta=%.4g \\; residual \\; n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
         end
     end
 else
     ttl = opts.Title;
 end
-title(ax, ttl,'Interpreter','none');
+% Use TeX interpreter so root sign and beta render nicely
+title(ax, ttl, 'Interpreter', 'tex');
 
 % Export
 outPath = '';
