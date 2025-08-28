@@ -94,12 +94,17 @@ symValVec = symVal(:);
                 intDigits = 0;
             else
                 tmp = intPart; loopCap = 5e5; it=0;
+                % Append LSB->MSB then flip once at the end to avoid costly
+                % pre-pending reallocations in large loops.
                 while tmp > 0 && it < loopCap
                     q = floor(tmp / baseRadix);
                     r = tmp - q*baseRadix;
                     d = double(floor(r));
-                    intDigits = [d intDigits]; %#ok<AGROW>
+                    intDigits(end+1) = d; %#ok<AGROW>
                     tmp = q; it = it + 1;
+                end
+                if ~isempty(intDigits)
+                    intDigits = fliplr(intDigits);
                 end
                 if it >= loopCap
                     warning('GridDigitViz:intLoopCap','Integer digit extraction reached loop cap; result may be incomplete.');
@@ -115,10 +120,12 @@ symValVec = symVal(:);
                 else
                     fnum = double(fracPart);
                 end
+                % preallocate fractional digit storage
+                fracDigits = zeros(1, opts.FractionDigits);
                 for kk=1:opts.FractionDigits
                     fnum = fnum * baseRadix;
                     dkk = floor(fnum);
-                    fracDigits(end+1) = double(dkk); %#ok<AGROW>
+                    fracDigits(kk) = double(dkk);
                     fnum = fnum - dkk;
                 end
             end
@@ -128,11 +135,15 @@ symValVec = symVal(:);
             seq = [];
             % integer residuals (most significant first)
             tmp = oneVal; loopCap = 5e5; it=0; stackInt = [];
+            % collect LSB->MSB then flip once to avoid pre-pending costs
             while tmp > 0 && it < loopCap
                 q = floor(tmp / baseRadix);
                 r = tmp - q*baseRadix;
-                stackInt = [double(r/baseRadix) stackInt]; %#ok<AGROW>
+                stackInt(end+1) = double(r/baseRadix); %#ok<AGROW>
                 tmp = q; it = it + 1;
+            end
+            if ~isempty(stackInt)
+                stackInt = fliplr(stackInt);
             end
             if it >= loopCap
                 warning('GridDigitViz:intLoopCap','Integer residual extraction loop cap reached.');
@@ -146,13 +157,15 @@ symValVec = symVal(:);
                 else
                     fnum = double(fracPart);
                 end
+                % preallocate residual storage then append once
+                resVals = zeros(1, opts.FractionDigits);
                 for kk=1:opts.FractionDigits
                     fnum = fnum * baseRadix;
                     dWhole = floor(fnum);
-                    resNorm = double((fnum - dWhole));
-                    seq = [seq resNorm]; %#ok<AGROW>
+                    resVals(kk) = double((fnum - dWhole));
                     fnum = fnum - dWhole;
                 end
+                seq = [seq resVals];
             end
             seq = [stackInt seq];
             if isempty(seq), seq = 0; end
@@ -180,11 +193,15 @@ if ~multi
 else
     % Multi-n: produce one row per n (ignore square packing)
     nCount = numel(symValVec);
-    seqCell = cell(nCount,1); maxLen = 0;
+    % Precompute sequences and lengths to avoid repeated dynamic growth
+    seqCell = cell(nCount,1);
+    seqLens = zeros(nCount,1);
     for ii=1:nCount
         sRow = extractSeq(symValVec(ii));
-        seqCell{ii} = sRow; maxLen = max(maxLen, numel(sRow));
+        seqCell{ii} = sRow;
+        seqLens(ii) = numel(sRow);
     end
+    maxLen = max(seqLens);
     if opts.Square
         % square doesn't apply in multi-row mode; warn once
         if nCount > 1
@@ -193,12 +210,7 @@ else
     end
     % Align decimal point by padding integer part with leading zeros
     % Determine integer lengths per row (assume fractional tail length = opts.FractionDigits)
-    intLens = zeros(nCount,1);
-    for ii=1:nCount
-        rlen = numel(seqCell{ii});
-        fracLen = min(opts.FractionDigits, rlen);
-        intLens(ii) = rlen - fracLen;
-    end
+    intLens = max(0, seqLens - min(opts.FractionDigits, seqLens));
     maxInt = max(intLens);
     maxLen = maxInt + max(0, opts.FractionDigits);
     img = nan(nCount, maxLen);
@@ -212,15 +224,18 @@ else
         if leadPad > 0
             img(ii, 1:leadPad) = 0; % leading zeros
         end
-        % place existing digits
+        % place existing digits efficiently
         startIdx = leadPad + 1;
-        img(ii, startIdx:startIdx + rlen -1) = rowSeq;
+        if rlen > 0
+            img(ii, startIdx:startIdx + rlen -1) = rowSeq;
+        end
         % trailing pad with PadValue if shorter than full width
-        if startIdx + rlen -1 < maxLen
+        tailStart = startIdx + rlen;
+        if tailStart <= maxLen
             if ~isnan(opts.PadValue)
-                img(ii, startIdx + rlen : maxLen) = opts.PadValue;
+                img(ii, tailStart : maxLen) = opts.PadValue;
             else
-                img(ii, startIdx + rlen : maxLen) = NaN;
+                img(ii, tailStart : maxLen) = NaN;
             end
         end
     end
