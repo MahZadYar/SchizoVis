@@ -5,12 +5,13 @@ type: software
 authors:
   - family-names: Moussavi
     given-names: Maziar
-version: 3.0.0
-date-released: 2025-08-26
-repository-code: https://github.com/<your-account>/SchizoViz
+version: 4.0.0
+date-released: 2025-08-28
+repository-code: https://github.com/MahZadYar/SchizoVis
 license: MIT
 abstract: >-
-  SchizoViz visualizes the layered digit structure of sqrt(f(n)), where
-  f(k) = b*f(k-1)+k generalizes decimal concatenation to base b. Version 3
-  introduces modular core functions, batch exponent expansion, and enhanced
-  visualization & export utilities.
+  SchizoVis visualizes the layered digit/residual structure of sqrt(f(n)),
+  where f(k)=b*f(k-1)+k generalizes decimal concatenation to real (beta)
+  bases. Version 4 finalizes non-integer base support, vectorized shared
+  exponent expansion, combined multi-n grid visualization, and improved
+  figure/colormap management for reproducible exports.

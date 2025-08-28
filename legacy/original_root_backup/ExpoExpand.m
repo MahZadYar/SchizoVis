@@ -1,3 +1,0 @@
-% Legacy backup of ExpoExpand (renamed from expoExpandBatch)
-% This file is a preserved copy; the canonical implementation is in src/ExpoExpand.m
-% ...existing code...

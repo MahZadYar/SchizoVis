@@ -60,13 +60,13 @@ else
 end
 
 % Determine digit alphabet size (integer spokes) for integer / beta base
-digitCount = floor(baseRadix);
-if digitCount < 2
-    error('PolarDigitVis:digitCount','floor(baseRadix) must be >= 2');
+digitCount = ceil(baseRadix);
+if digitCount < 1
+    error('PolarDigitVis:digitCount','floor(baseRadix) must be >= 1');
 end
 % Angles (vectorized). In digits mode digits in 0..digitCount-1. Scale by digitCount.
 t_coords = tic;
-theta = (digitsMat / digitCount) * 2*pi; % LxM
+theta = (digitsMat / baseRadix) * 2*pi; % LxM
 % Broadcast radii to layers
 rMat = repmat(r_vals, L,1);
 xMat = cos(theta) .* rMat;
@@ -140,12 +140,12 @@ plot3(ax, clockR*cos(thCirc), clockR*sin(thCirc), ones(size(thCirc))*zRange(1), 
 
 % Digit spokes & labels
 if S.DigitGuides
-    whole_angles = (0:digitCount-1)/digitCount * 2*pi;
+    whole_angles = (0:digitCount)/baseRadix * 2*pi;
     for d = 0:digitCount-1
-        ang = whole_angles(d+1);
-        plot3(ax, [0 clockR*cos(ang)], [0 clockR*sin(ang)], [zRange(1) zRange(1)], '-', 'Color',[0.5 0.5 0.5], 'LineWidth', 0.6);
-        if d < 10, ds = num2str(d); else, ds = char('A'+(d-10)); end
-        text(clockR*1.05*cos(ang), clockR*1.05*sin(ang), zRange(1), ds, 'Color',[0.9 0.9 0.9], 'HorizontalAlignment','center');
+            ang = whole_angles(d+1);
+            plot3(ax, [0 clockR*cos(ang)], [0 clockR*sin(ang)], [zRange(1) zRange(1)], '-', 'Color',[0.5 0.5 0.5], 'LineWidth', 0.6);
+            if d < 10, ds = num2str(d); else, ds = char('A'+(d-10)); end
+            text(clockR*1.05*cos(ang), clockR*1.05*sin(ang), zRange(1), ds, 'Color',[0.9 0.9 0.9], 'HorizontalAlignment','center');
     end
 end
 
@@ -170,7 +170,7 @@ Xticks = [];
 Yticks = [];
 Zticks = [];
 for d = 0:digitCount-1
-    ang = (d/digitCount) * 2*pi;
+    ang = (d/baseRadix) * 2*pi;
     cang = cos(ang); sang = sin(ang);
     for r = r_sample
         r_inner = max(0, r - tickLen);
@@ -185,13 +185,25 @@ if ~isempty(Xticks)
 end
 
 % Repetition guides: limit number and vectorize
-if S.RepeatGuides && digitCount>2
-    repBase = digitCount-1;
-    maxRep = inf; % clamp to reasonable number of repetition guides
-    nRep = min(repBase, maxRep);
-    repIdx = unique(round(linspace(1, repBase, nRep)));
-    rep_angles = (repIdx ./ repBase) * 2*pi;
-    guidR = clockR * 0.98;
+if S.RepeatGuides
+    % Repetition guides for values 0.\overline{d} where value = d/(baseRadix-1)
+    tol = 1e-12;
+    if baseRadix <= 1+tol
+        repIdx = [];
+        rep_angles = [];
+        guidR = clockR * 0.98;
+    else
+        availDigits = 1:(digitCount-1);              % usable digit symbols
+        % include all valid digits up to baseRadix-1 (no manual limiting)
+        validDigits = availDigits(availDigits <= baseRadix-1+tol);  % need d/(baseRadix-1) <= 1
+        repIdx = validDigits;
+        if isempty(repIdx)
+            rep_angles = [];
+        else
+            rep_angles = (repIdx / (baseRadix-1)) * 2*pi;    % angle corresponds to fractional value d/(baseRadix-1)
+        end
+        guidR = clockR * 0.98;
+    end
     % plot all repeat spokes in one call
     XR = [];
     YR = [];

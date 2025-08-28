@@ -4,7 +4,7 @@ function digitsOrResiduals = ExpoExpand(sVals, exponents, precisionOrder, baseRa
 %   sVals        : Lx1 (or 1xL) symbolic sqrt values (sqrt(f(n))) kept symbolic until here.
 %   exponents    : 1xM descending exponent vector (same for all layers).
 %   precisionOrder: nonnegative integer specifying negative exponent depth (already reflected in exponents).
-%   baseRadix    : integer base >= 2.
+%   baseRadix    : base > 1.
 %   mode         : "digits" or "residual".
 % Returns an LxM numeric matrix where each row corresponds to one sVal expansion.
 
@@ -12,7 +12,7 @@ arguments
     sVals {mustBeNonempty}
     exponents double {mustBeNonempty}
     precisionOrder double {mustBeNonnegative, mustBeInteger} %#ok<INUSA>
-    baseRadix double {mustBeGreaterThanOrEqual(baseRadix,2)} % allow non-integer base (beta)
+    baseRadix double {mustBeGreaterThan(baseRadix,1)} % allow non-integer base (beta)
     mode {mustBeTextScalar}
 end
 
@@ -31,7 +31,7 @@ currDigits = digits; %#ok<DIGIT>
 fprintf('ExpoExpand: using global symbolic precision digits=%d (driver-controlled, beta-base)\n', currDigits);
 
 % Optional validation (lightweight). Set enableValidation=true to compare a single row with higher precision.
-enableValidation = true; %#ok<NASGU> (user can toggle manually)
+enableValidation = false; %#ok<NASGU> (user can toggle manually)
 validationRow = 1;          % which row to test
 validationExtra = 80;       % extra decimal digits for validation run
 validationTail = 25;        % how many deepest (most negative exponent) slots to compare

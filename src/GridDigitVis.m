@@ -1,4 +1,4 @@
-function outPath = GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)
+function [outPath, hStruct] = GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)
 % GridDigitViz  Visualize a (possibly non-integer) symbolic number in base-R as a pixel image.
 % Each digit (integer part + optional fractional part) becomes one pixel colored via a colormap.
 % outPath = GridDigitViz(symVal, baseRadix, outFile, nVal, Name,Value...)
@@ -13,6 +13,7 @@ function outPath = GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)
 %   'Show'           : show figure (default false)
 %   'MaxSide'        : target figure side in pixels (default 1000)
 %   'Mode'           : 'digits' (default) or 'residual' (continuous base expansion values)
+%   'ColorScale'     : 'linear' (default) or 'exponential' - mapping for continuous residual colormap
 %
 % NOTE: For very large integer parts this performs symbolic division; may be slow.
 
@@ -24,7 +25,11 @@ opts.PadValue = NaN;
 opts.Square = true;
 opts.Show = false;
 opts.MaxSide = 1000;
-opts.Mode = 'digits';
+opts.Mode = 'residual';
+opts.ColorScale = 'exponential'; % 'linear' or 'exponential'
+opts.Figure = [];
+opts.FigureName = '';
+opts.Tag = '';
 if ~isempty(varargin)
     for k=1:2:numel(varargin)
         key = lower(string(varargin{k})); val = varargin{k+1};
@@ -38,112 +43,120 @@ if ~isempty(varargin)
             case 'show';           opts.Show = logical(val);
             case 'maxside';        opts.MaxSide = double(val);
             case 'mode';           opts.Mode = char(lower(string(val)));
+            case 'colorscale';     opts.ColorScale = char(lower(string(val)));
+            case 'figure';         opts.Figure = val;
+            case 'figurename';     opts.FigureName = char(val);
+            case 'tag';            opts.Tag = char(val);
             otherwise; warning('GridDigitViz:unknownOption','Unknown option %s', key);
         end
     end
 end
 
 % Resolve digit count (alphabet size) for integer / beta base
-digitCount = floor(baseRadix);
-if digitCount < 2
-    error('GridDigitViz:digitCount','floor(baseRadix) must be >= 2');
+digitCount = ceil(baseRadix);
+if digitCount < 1
+    error('GridDigitViz:digitCount','floor(baseRadix) must be >= 1');
 end
 % Resolve colormap
 if isempty(opts.Colormap)
-    opts.Colormap = parula(digitCount);
+    % Use full-resolution parula (256) to avoid low-base banding artifacts
+    opts.Colormap = parula(256);
 elseif ischar(opts.Colormap) || isstring(opts.Colormap)
     try
         cf = str2func(char(opts.Colormap));
-    opts.Colormap = cf(max(digitCount,64));
+        opts.Colormap = cf(256);
     catch
-    warning('GridDigitViz:colormap','Could not resolve colormap %s, using parula.', string(opts.Colormap));
-        opts.Colormap = parula(digitCount);
+        warning('GridDigitViz:colormap','Could not resolve colormap %s, using parula(256).', string(opts.Colormap));
+        opts.Colormap = parula(256);
     end
 end
 if size(opts.Colormap,2)~=3
     error('GridDigitViz:colormapShape','Colormap must be Nx3');
 end
-% Resample provided colormap to exactly baseRadix colors (spread across original map)
-nC = size(opts.Colormap,1);
-if nC == 1
-    % single color -> replicate
-    opts.Colormap = repmat(opts.Colormap, digitCount, 1);
-else
-    old = linspace(0,1,nC);
-    new = linspace(0,1,digitCount);
-    opts.Colormap = interp1(old, opts.Colormap, new);
-end
+% Ensure we work with a high-resolution base map (>=256 rows recommended)
+% Prepare mode and input vectorization
+mode = string(opts.Mode);
+multi = numel(symVal) > 1;
+% ensure a column vector of values for iteration
+symValVec = symVal(:);
 
-mode = lower(string(opts.Mode));
-if ~(mode == "digits" || mode == "residual")
-    warning('GridDigitViz:mode','Unknown Mode %s -> falling back to digits.', opts.Mode);
-    mode = "digits";
-end
-
-symValVec = symVal; % alias
-multi = numel(symValVec) > 1;
-
-% helper to extract a single sequence for one symbolic value
+% Nested helper: extract digit/residual sequence for a single value
     function seq = extractSeq(oneVal)
+        % Support symbolic or numeric inputs
+        isSym = isa(oneVal, 'sym');
+        % Integer part
+        intPart = floor(oneVal);
+        % For 'digits' mode: produce integer digits (MSB->LSB) then fractional digits
         if mode == "digits"
-            intPart = floor(oneVal);
-            fracPart = oneVal - intPart;
+            % Integer digits
             intDigits = [];
-            if intPart == 0
+            if double(intPart) == 0
                 intDigits = 0;
             else
-                tmp2 = intPart; loopCap2 = 5e5; it2=0;
-                while tmp2 > 0 && it2 < loopCap2
-                    q2 = floor(tmp2 / baseRadix);
-                    r2 = tmp2 - q2*baseRadix;
-                    d2 = double(floor(r2));
-                    intDigits = [d2 intDigits]; %#ok<AGROW>
-                    tmp2 = q2; it2 = it2 + 1;
+                tmp = intPart; loopCap = 5e5; it=0;
+                while tmp > 0 && it < loopCap
+                    q = floor(tmp / baseRadix);
+                    r = tmp - q*baseRadix;
+                    d = double(floor(r));
+                    intDigits = [d intDigits]; %#ok<AGROW>
+                    tmp = q; it = it + 1;
                 end
-                if it2 >= loopCap2
+                if it >= loopCap
                     warning('GridDigitViz:intLoopCap','Integer digit extraction reached loop cap; result may be incomplete.');
                 end
             end
-            fracDigits2 = [];
-            if opts.FractionDigits > 0 && (oneVal - floor(oneVal)) ~= 0
-                decPrec2 = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
-                fnum2 = vpa(oneVal - floor(oneVal), decPrec2);
+            % Fractional digits
+            fracDigits = [];
+            if opts.FractionDigits > 0
+                fracPart = oneVal - floor(oneVal);
+                if isSym
+                    decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
+                    fnum = vpa(fracPart, decPrec);
+                else
+                    fnum = double(fracPart);
+                end
                 for kk=1:opts.FractionDigits
-                    fnum2 = fnum2 * baseRadix;
-                    dkk = floor(fnum2);
-                    fracDigits2(end+1) = double(dkk); %#ok<AGROW>
-                    fnum2 = fnum2 - dkk;
+                    fnum = fnum * baseRadix;
+                    dkk = floor(fnum);
+                    fracDigits(end+1) = double(dkk); %#ok<AGROW>
+                    fnum = fnum - dkk;
                 end
             end
-            seq = [intDigits fracDigits2];
+            seq = [intDigits fracDigits];
         else
-            intPart = floor(oneVal);
-            fracPart = oneVal - intPart;
+            % 'residual' mode: produce integer residuals (normalized) then fractional residuals
             seq = [];
-            tmp2 = oneVal; loopCap2 = 5e5; it2=0; stackInt2 = [];
-            while tmp2 > 0 && it2 < loopCap2
-                q2 = floor(tmp2 / baseRadix);
-                r2 = tmp2 - q2*baseRadix;
-                stackInt2 = [double(r2/baseRadix) stackInt2]; %#ok<AGROW>
-                tmp2 = q2; it2 = it2 + 1;
+            % integer residuals (most significant first)
+            tmp = oneVal; loopCap = 5e5; it=0; stackInt = [];
+            while tmp > 0 && it < loopCap
+                q = floor(tmp / baseRadix);
+                r = tmp - q*baseRadix;
+                stackInt = [double(r/baseRadix) stackInt]; %#ok<AGROW>
+                tmp = q; it = it + 1;
             end
-            if it2 >= loopCap2
+            if it >= loopCap
                 warning('GridDigitViz:intLoopCap','Integer residual extraction loop cap reached.');
             end
-            if opts.FractionDigits > 0 && fracPart ~= 0
-                decPrec2 = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
-                fnum2 = vpa(fracPart, decPrec2);
+            % fractional residuals
+            if opts.FractionDigits > 0
+                fracPart = oneVal - floor(oneVal);
+                if isSym
+                    decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
+                    fnum = vpa(fracPart, decPrec);
+                else
+                    fnum = double(fracPart);
+                end
                 for kk=1:opts.FractionDigits
-                    fnum2 = fnum2 * baseRadix;
-                    dWhole2 = floor(fnum2);
-                    resNorm2 = double((fnum2 - dWhole2));
-                    seq = [seq resNorm2]; %#ok<AGROW>
-                    fnum2 = fnum2 - dWhole2;
+                    fnum = fnum * baseRadix;
+                    dWhole = floor(fnum);
+                    resNorm = double((fnum - dWhole));
+                    seq = [seq resNorm]; %#ok<AGROW>
+                    fnum = fnum - dWhole;
                 end
             end
-            seq = [stackInt2 seq]; if isempty(seq); seq = 0; end
+            seq = [stackInt seq];
+            if isempty(seq), seq = 0; end
         end
-        if isempty(seq), seq = 0; end
     end
 
 if ~multi
@@ -178,20 +191,68 @@ else
             warning('GridDigitViz:multiSquareIgnored','Square layout ignored for multi-row visualization.');
         end
     end
+    % Align decimal point by padding integer part with leading zeros
+    % Determine integer lengths per row (assume fractional tail length = opts.FractionDigits)
+    intLens = zeros(nCount,1);
+    for ii=1:nCount
+        rlen = numel(seqCell{ii});
+        fracLen = min(opts.FractionDigits, rlen);
+        intLens(ii) = rlen - fracLen;
+    end
+    maxInt = max(intLens);
+    maxLen = maxInt + max(0, opts.FractionDigits);
     img = nan(nCount, maxLen);
     for ii=1:nCount
         rowSeq = seqCell{ii};
-        img(ii,1:numel(rowSeq)) = rowSeq;
-        if numel(rowSeq) < maxLen && ~isnan(opts.PadValue)
-            padFill = repmat(opts.PadValue,1,maxLen-numel(rowSeq)); %#ok<NASGU>
+        rlen = numel(rowSeq);
+        fracLen = min(opts.FractionDigits, rlen);
+        intLen = rlen - fracLen;
+        % leading zeros to align integer part
+        leadPad = maxInt - intLen;
+        if leadPad > 0
+            img(ii, 1:leadPad) = 0; % leading zeros
+        end
+        % place existing digits
+        startIdx = leadPad + 1;
+        img(ii, startIdx:startIdx + rlen -1) = rowSeq;
+        % trailing pad with PadValue if shorter than full width
+        if startIdx + rlen -1 < maxLen
+            if ~isnan(opts.PadValue)
+                img(ii, startIdx + rlen : maxLen) = opts.PadValue;
+            else
+                img(ii, startIdx + rlen : maxLen) = NaN;
+            end
         end
     end
 end
 
-% Figure
+% Figure (allow reuse)
+externalFig = ~isempty(opts.Figure) && isgraphics(opts.Figure,'figure');
 vis = 'off'; if opts.Show, vis='on'; end
 figColor = 'white'; if opts.Transparent, figColor='none'; end
-fig = figure('Visible',vis,'Color',figColor,'Units','pixels','Position',[100 100 opts.MaxSide opts.MaxSide]);
+if externalFig
+    fig = opts.Figure;
+    figure(fig);
+    cla reset; % clear existing axes/graphics
+    set(fig,'Visible',vis,'Color',figColor);
+    if ~isempty(opts.FigureName)
+        try
+            set(fig,'Name',opts.FigureName);
+        catch
+        end
+    end
+    if ~isempty(opts.Tag)
+        try
+            set(fig,'Tag',opts.Tag);
+        catch
+        end
+    end
+else
+    figArgs = {'Visible',vis,'Color',figColor,'Units','pixels','Position',[100 100 opts.MaxSide opts.MaxSide]};
+    if ~isempty(opts.FigureName), figArgs = [figArgs {'Name',opts.FigureName}]; end %#ok<AGROW>
+    if ~isempty(opts.Tag), figArgs = [figArgs {'Tag',opts.Tag}]; end %#ok<AGROW>
+    fig = figure(figArgs{:});
+end
 ax = axes('Parent',fig); hold(ax,'on');
 if opts.Transparent, set(ax,'Color','none'); end
 
@@ -212,7 +273,7 @@ end
 
 % Display image with NaN -> transparent; ensure first element maps to top-left
 imAlpha = validMask;
-imagesc(ax, imgD, 'AlphaData', imAlpha);
+imgH = imagesc(ax, imgD, 'AlphaData', imAlpha);
 set(ax,'YDir','reverse'); % first row at top
 % Fill available axes area (do not force equal axis) so image stretches to figure
 axis(ax,'tight');
@@ -259,69 +320,85 @@ if multi
 else
     axis(ax,'off');
 end
+% Choose colormap mapping depending on mode and ColorScale
 if mode == "digits"
-    colormap(ax, opts.Colormap(1:digitCount,:));
+    % Discrete colormap for digits:
+    % - if the provided colormap already has exactly digitCount entries
+    %   (e.g. parula(digitCount)), use it as-is so the palette remains refined;
+    % - otherwise, sample evenly across the provided colormap to produce
+    %   digitCount colours (avoids truncating the palette to its first rows).
+    if size(opts.Colormap,1) == digitCount
+        map = opts.Colormap;
+    else
+        map = interp1(linspace(0,1,size(opts.Colormap,1)), opts.Colormap, linspace(0,1,digitCount));
+    end
+    colormap(ax, map);
 else
-    % For residuals, ensure a sufficiently smooth map
-    colormap(ax, interp1(linspace(0,1,size(opts.Colormap,1)), opts.Colormap, linspace(0,1,256)));
+    % For residuals, create a smooth colormap; support exponential scaling
+    baseMap = opts.Colormap;
+    xIn = linspace(0,1,size(baseMap,1));
+    if strcmpi(opts.ColorScale,'exponential')
+        xOut = (exp(linspace(0,1,256)) - 1) / (exp(1)-1); % exponential emphasis
+    else
+        xOut = linspace(0,1,256);
+    end
+    map = interp1(xIn, baseMap, xOut);
+    colormap(ax, map);
 end
+
 caxis(ax,caxisRange);
 cb = colorbar(ax,'eastoutside');
-ticks = 0:digitCount-1;
+% Colorbar ticks: show only whole integers < baseRadix for digit labels
+intMax = digitCount - 1;
+% Always use whole-digit tick positions (0..digitCount-1) for the colorbar.
+ticks = 0:intMax;
 cb.Ticks = ticks;
-% tick labels (0-9 A B ...)
-lbl = strings(size(ticks));
-for i=1:numel(ticks)
-    d = ticks(i);
-    if d < 10
-        lbl(i) = string(d);
-    else
-        lbl(i) = char('A' + (d-10));
-    end
-end
-    cb.TickLabels = cellstr(lbl);
-    if mode == "digits"
-        cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
-    else
-        cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
-        tickVals = linspace(0, caxisRange(2), 6); cb.Ticks = tickVals;
-        if baseRadix == floor(baseRadix)
-            cb.TickLabels = compose('%d', round(tickVals));
+if mode == "digits"
+    % tick labels (0-9 A B ...)
+    lbl = strings(size(ticks));
+    for i=1:numel(ticks)
+        d = ticks(i);
+        if d < 10
+            lbl(i) = string(d);
         else
-            cb.TickLabels = compose('%.2f', tickVals);
+            lbl(i) = char('A' + (d-10));
         end
     end
+    cb.TickLabels = cellstr(lbl);
+    cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, intMax);
+else
+    % For residuals, show the same integer tick positions (whole-digit markers)
+    cb.TickLabels = compose('%d', ticks);
+    cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
+end
 
-% Build a TeX-friendly title with root symbol and compact params
+% Build a plain title with root character and compact params
 if isempty(opts.Title)
     if ~multi
         if mode == "digits"
             if opts.FractionDigits > 0
-                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g\\; frac=%d \\; digits', nVal, baseRadix, opts.FractionDigits);
+                ttl = sprintf('√ f(%d) | beta=%.4g | frac=%d | digits', nVal, baseRadix, opts.FractionDigits);
             else
-                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g \\; digits', nVal, baseRadix);
+                ttl = sprintf('√ f(%d) | beta=%.4g | digits', nVal, baseRadix);
             end
         else
             if opts.FractionDigits > 0
-                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g\\; frac=%d \\; residual', nVal, baseRadix, opts.FractionDigits);
+                ttl = sprintf('√ f(%d) | beta=%.4g | frac=%d | residual', nVal, baseRadix, opts.FractionDigits);
             else
-                ttl = sprintf('\\surd f(%d) \\; |\\beta=%.4g \\; residual', nVal, baseRadix);
+                ttl = sprintf('√ f(%d) | beta=%.4g | residual', nVal, baseRadix);
             end
         end
     else
         nMinLocal = min(nVal); nMaxLocal = max(nVal);
         if mode == "digits"
-            ttl = sprintf('\\surd f(n) \\; |\\beta=%.4g \\; digits \\; n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
+            ttl = sprintf('√ f(n) | beta=%.4g | digits | n=[%d..%d]', baseRadix, nMinLocal, nMaxLocal);
         else
-            ttl = sprintf('\\surd f(n) \\; |\\beta=%.4g \\; residual \\; n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
+            ttl = sprintf('√ f(n) | beta=%.4g | residual | n=[%d..%d]', baseRadix, nMinLocal, nMaxLocal);
         end
     end
 else
     ttl = opts.Title;
 end
-% Use plain root character and no interpreter (portable rendering)
-ttl = strrep(ttl,'\\surd','√');
-ttl = strrep(ttl,'\\;',' | ');
 title(ax, ttl, 'Interpreter', 'none');
 
 % Export
@@ -347,10 +424,18 @@ end
 
 % Backwards compatibility alias
 function outPath = renderNumberImage(varargin)
-outPath = GridDigitViz(varargin{:});
+outPath = GridDigitVis(varargin{:});
 end
 
-if ~opts.Show
+if ~opts.Show && ~externalFig
     close(fig);
+end
+
+% Build handle struct if requested
+if nargout > 1
+    hStruct = struct('fig',fig,'ax',ax,'image',imgH,'colorbar',cb,'mode',char(mode), ...
+        'baseRadix',baseRadix,'nVal',nVal,'multi',multi);
+else
+    hStruct = struct();
 end
 end

@@ -3,8 +3,8 @@ clear; clc; close all;
 
 % Parameters
 nMin = 001; nMax = 101; nStepSize = 2; %#ok<NASGU>
-baseRadix = 5; 
-precisionOrder = 01000; 
+baseRadix = 10; 
+precisionOrder = 500; 
 mode = "residual"; % options: "digits", "residual"
 
 % Export / video switches (similar spirit to v2)
@@ -23,8 +23,8 @@ exportFolder = pwd; % default to current working directory; set to absolute path
 exportFolder = "D:\~Projects\SchizoVis";
 
 % Visualization switches
-VisPolar = false; % show polar stacked visualization
-VisGrid  = true;  % show grid digit visualization (last sqrt only for static; sweep video if exportVideo)
+VisPolar = true; % show polar stacked visualization
+VisGrid  = false;  % show grid digit visualization (last sqrt only for static; sweep video if exportVideo)
 
 numDigits = precisionOrder + nMax + 10; % how many fractional digits to show in the exported number image
 digits(numDigits);
@@ -66,58 +66,22 @@ if VisPolar
 	ax = ancestor(hScatter,'axes');
 	fig = ancestor(ax,'figure');
 else
-	fprintf('SchizoVis: VisPolar is false, skipping PolarDigitVis\n');
 	hScatter = []; ax = []; fig = [];
 end
-% Derive clockR & zRange similar to PolarDigitVis for consistent axis locking (only if polar exists)
-gmax = exponents(1);
-if gmax > 0
-	r_vals = 1 - exponents / gmax;
-else
-	emin = exponents(end);
-	if emin == 0
-		r_vals = ones(size(exponents));
-	else
-		r_vals = (exponents - emin)/(0 - emin);
-	end
-end
-clockR = max(r_vals);
-L = size(digitsMat,1); zRange = [0 clockR];
-padFrac = 0.03; xr = 2*clockR; pad = padFrac * xr;
-% Only set axis limits and extract scatter data if Polar visualization was created
-if ~isempty(ax) && isgraphics(ax,'axes') && ~isempty(hScatter)
-	if clockR>0
-		xlim(ax, [-clockR - pad, clockR + pad]);
-		ylim(ax, [-clockR - pad, clockR + pad]);
-	else
-		xlim(ax,[-1 1]); ylim(ax,[-1 1]);
-	end
-	zpad = max(0.05*clockR, 0.05);
-	zlim(ax, [zRange(1)-zpad, zRange(2)+zpad]);
+
+% Grid visualization (non-export) when VisGrid is enabled and exportNumber not used
+if VisGrid && ~exportVideo
 	try
-		ax.XLimMode='manual';
-		ax.YLimMode='manual';
-		ax.ZLimMode='manual';
-	catch
-		axis(ax,'manual');
+		GridDigitVis(sVals, baseRadix, '', nList, 'FractionDigits', precisionOrder, 'Mode', mode, 'Transparent', true, 'Show', true);
+		try
+			figGrid = gcf; set(figGrid,'WindowStyle','docked');
+		catch
+		end
+	catch ME
+		warning(ME.identifier, 'Could not create multi-row grid visualization: %s', ME.message);
 	end
-	drawnow;
-	% Flatten data for later video masking
-	allX = get(hScatter,'XData');
-	allY = get(hScatter,'YData');
-	allZ = get(hScatter,'ZData');
-	M = numel(exponents); % per-layer column count
-else
-	% No polar scatter: create safe placeholders so later code can check emptiness
-	allX = []; allY = []; allZ = [];
-	M = numel(exponents);
-end
-
-% (Removed legacy exportNumber feature to reduce switch conflicts)
-
-% -------- Grid grid/video export logic (using GridDigitVis) --------
-if exportVideo && VisGrid && numel(nList) >= 1
-	fprintf('SchizoVis: exporting grid video (one frame per n) using GridDigitVis...\n');
+elseif VisGrid && exportVideo
+fprintf('SchizoVis: exporting grid video (one frame per n) using GridDigitVis...\n');
 	if ~isfolder(exportFolder); mkdir(exportFolder); end
 	gridVideoName = sprintf('%s_grid', FileName);
 	proceed = true; extG = '.avi';
@@ -140,12 +104,7 @@ if exportVideo && VisGrid && numel(nList) >= 1
 	if proceed
 		for idxN = 1:numel(nList)
 			try
-				if mode == "residual"
-					cmapLocal = parula(max(256, floor(baseRadix)*8));
-				else
-					cmapLocal = parula(max(64, floor(baseRadix)*4));
-				end
-				GridDigitVis(sVals(idxN), baseRadix, '', nList(idxN), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', cmapLocal, 'Transparent', false, 'Show', true);
+				GridDigitVis(sVals(idxN), baseRadix, '', nList(idxN), 'FractionDigits', precisionOrder, 'Mode', mode, 'Transparent', true, 'Show', true);
 				figGV = gcf;
 				% black background for consistency
 				try
@@ -174,30 +133,45 @@ end
 if exportFigure
 	try
 		if ~isfolder(exportFolder); mkdir(exportFolder); end
-		if VisPolar && ~isempty(fig) && isgraphics(fig)
-			figPathFig = fullfile(exportFolder, sprintf('%s_polar.fig', FileName));
-			figPathPng = fullfile(exportFolder, sprintf('%s_polar.png', FileName));
-			savefig(fig, figPathFig);
-			exportgraphics(fig, figPathPng, 'Resolution', 150);
-			fprintf('SchizoVis: polar figure exported -> %s , %s\n', figPathFig, figPathPng);
-		end
-		if VisGrid
-			gridPathFig = fullfile(exportFolder, sprintf('%s_grid.fig', FileName));
-			gridPathPng = fullfile(exportFolder, sprintf('%s_grid.png', FileName));
-			if ~exportVideo
-				% Multi-row static grid of all n values
-				GridDigitVis(sVals, baseRadix, '', nList, 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(128,floor(baseRadix)*8)), 'Transparent', false, 'Show', true);
+
+		% Export existing polar figure only (do not recreate)
+		if VisPolar
+			if exist('fig','var') && isgraphics(fig,'figure')
+				figPathFig = fullfile(exportFolder, sprintf('%s_polar.fig', FileName));
+				figPathPng = fullfile(exportFolder, sprintf('%s_polar.png', FileName));
+				savefig(fig, figPathFig);
+				exportgraphics(fig, figPathPng, 'Resolution', 300);
+				fprintf('SchizoVis: polar figure exported -> %s , %s\n', figPathFig, figPathPng);
 			else
-				% When video already produced, optionally export last frame grid only
-				GridDigitVis(sVals(end), baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', false, 'Show', true);
-			end
-			try
-				figGStatic = gcf; savefig(figGStatic, gridPathFig); exportgraphics(figGStatic, gridPathPng, 'Resolution', 150);
-				fprintf('SchizoVis: grid figure exported -> %s , %s\n', gridPathFig, gridPathPng);
-			catch ME2
-				warning(ME2.identifier,'Grid figure export failed: %s', ME2.message);
+				warning('SchizoVis:NoPolarFig','Polar figure handle not found; skipping polar export.');
 			end
 		end
+
+		% Export existing grid figure only (do not recreate)
+		if VisGrid
+			% prefer figGrid then figGV if any exist
+			gridFigHandle = [];
+			if exist('figGrid','var') && isgraphics(figGrid,'figure')
+				gridFigHandle = figGrid;
+			elseif exist('figGV','var') && isgraphics(figGV,'figure')
+				gridFigHandle = figGV;
+			end
+
+			if ~isempty(gridFigHandle)
+				gridPathFig = fullfile(exportFolder, sprintf('%s_grid.fig', FileName));
+				gridPathPng = fullfile(exportFolder, sprintf('%s_grid.png', FileName));
+				try
+					savefig(gridFigHandle, gridPathFig);
+					exportgraphics(gridFigHandle, gridPathPng, 'Resolution', 150);
+					fprintf('SchizoVis: grid figure exported -> %s , %s\n', gridPathFig, gridPathPng);
+				catch ME2
+					warning(ME2.identifier,'Grid figure export failed: %s', ME2.message);
+				end
+			else
+				warning('SchizoVis:NoGridFig','Grid figure handle not found; skipping grid export.');
+			end
+		end
+
 	catch ME
 		warning(ME.identifier,'Figure export failed: %s', ME.message);
 	end
@@ -237,6 +211,57 @@ if exportVideo && VisPolar && ~isempty(hScatter)
 			warning(ME.identifier,'Could not resize figure: %s', ME.message);
 		end
 	end
+
+	% Derive clockR & zRange similar to PolarDigitVis for consistent axis locking (only if polar exists)
+	gmax = exponents(1);
+	if gmax > 0
+		r_vals = 1 - exponents / gmax;
+	else
+		emin = exponents(end);
+		if emin == 0
+			r_vals = ones(size(exponents));
+		else
+			r_vals = (exponents - emin)/(0 - emin);
+		end
+	end
+	clockR = max(r_vals);
+	L = size(digitsMat,1); zRange = [0 clockR];
+	padFrac = 0.03; xr = 2*clockR; pad = padFrac * xr;
+	% Only set axis limits and extract scatter data if Polar visualization was created
+	if ~isempty(ax) && isgraphics(ax,'axes') && ~isempty(hScatter)
+		if clockR>0
+			xlim(ax, [-clockR - pad, clockR + pad]);
+			ylim(ax, [-clockR - pad, clockR + pad]);
+		else
+			xlim(ax,[-1 1]); ylim(ax,[-1 1]);
+		end
+		zpad = max(0.05*clockR, 0.05);
+		zlim(ax, [zRange(1)-zpad, zRange(2)+zpad]);
+		try
+			ax.XLimMode='manual';
+			ax.YLimMode='manual';
+			ax.ZLimMode='manual';
+		catch
+			axis(ax,'manual');
+		end
+		drawnow;
+		% Flatten data for later video masking
+		allX = get(hScatter,'XData');
+		allY = get(hScatter,'YData');
+		allZ = get(hScatter,'ZData');
+		M = numel(exponents); % per-layer column count
+	else
+		% No polar scatter: create safe placeholders so later code can check emptiness
+		allX = []; allY = []; allZ = [];
+		M = numel(exponents);
+	end
+
+	% Flatten data for later video masking
+	allX = get(hScatter,'XData');
+	allY = get(hScatter,'YData');
+	allZ = get(hScatter,'ZData');
+	M = numel(exponents);
+
 	% Prepare masked arrays (start empty)
 	xMask = nan(size(allX)); yMask = nan(size(allY)); zMask = nan(size(allZ));
 	if videoDynamicColors
@@ -307,17 +332,4 @@ if VisPolar && ~isempty(hScatter)
 	end
 end
 
-% Optional Grid visualization (non-export) when VisGrid is enabled and exportNumber not used
-if VisGrid && ~exportVideo
-	try
-		GridDigitVis(sVals, baseRadix, '', nList, 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(128,floor(baseRadix)*8)), 'Transparent', true, 'Show', true);
-		try
-			figGrid = gcf; set(figGrid,'WindowStyle','docked');
-		catch
-		end
-	catch ME
-		warning(ME.identifier, 'Could not create multi-row grid visualization: %s', ME.message);
-	end
-elseif VisGrid && exportVideo
-	% Combined static grid skipped (video frames already produced)
-end
+

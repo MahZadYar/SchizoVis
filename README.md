@@ -1,20 +1,34 @@
-SchizoVis (v3)
+SchizoVis (v4.0)
 =================
 
 Author: Maziar Moussavi  
-Current Version: 3 (2025-08)  
+Current Version: 4.0.0 (2025-08)  
 Languages: MATLAB (core algorithms + visualization)
 
 Summary
 -------
-SchizoVis (renamed from SchizoViz) visualizes the evolving square root of the "schizophrenic number" sequence:
+SchizoVis visualizes the evolving square root of the "schizophrenic number" sequence:
 
   f(0) = 0,  f(k) = b * f(k-1) + k
 
 Where b = baseRadix (user selectable, b >= 2). For base 10 this is ordinary decimal concatenation of 1..k. For other bases it generalizes the process into base-b digit append operations. The project extracts layered digit (or residual) structure of sqrt(f(n)) across a controlled exponent window, mapping digits to polar coordinates and stacking layers (n values) in Z. It also supports exporting progressive videos and grid digit images.
 
-What's New in v3
-----------------
+What's New in v4.0
+------------------
+
+Major release focusing on generalized bases, performance, and unified multi‑n visualization:
+
+* Full non‑integer (beta) base support end‑to‑end (generation, expansion, polar & grid views).
+* Vectorized shared exponent lattice expansion across multiple sqrt values (`ExpoExpand`).
+* Combined multi‑n grid view (one row per n) with aligned integer parts; digits or residual modes.
+* High‑resolution colormap pipeline (always 256 base entries) for stable appearance at small bases.
+* `GridDigitVis` figure & handle management (`Figure`, `FigureName`, `Tag`, returned handle struct).
+* `ColorScale` option (`linear` / `exponential`) for residual emphasis.
+* Unified integer colorbar ticks (0..floor(baseRadix)-1) across modes; simplified plain‑text titles.
+
+Previous: What's New in v3
+-----------------
+
 v3 refactors the exploratory v1/v2 scripts into modular, testable components:
 
 * Modular functions in `src/`: `SchizoGen`, `ExpoExpand`, `PolarDigitVis`, `GridDigitVis`.
@@ -56,20 +70,23 @@ Quick Start
 
 1. Clone the repository:
 
-  ```bash
-  git clone https://github.com/YOUR_GITHUB_USERNAME/SchizoVis.git
-  ```
-2. In MATLAB, from the repo root run:
+```bash
+git clone https://github.com/YOUR_GITHUB_USERNAME/SchizoVis.git
+```
 
-  ```matlab
-  setup
-  ```
-3. Open and run the example:
+1. In MATLAB, from the repo root run:
 
-  ```matlab
-  examples/SchizoViz_demo_v3.m
-  ```
-4. Adjust parameters near the top (n range, baseRadix, precisionOrder, export toggles).
+```matlab
+setup
+```
+
+1. Open and run the example:
+
+```matlab
+examples/SchizoViz_demo_v3.m
+```
+
+1. Adjust parameters near the top (n range, baseRadix, precisionOrder, export toggles).
 
 Core Concepts
 -------------
