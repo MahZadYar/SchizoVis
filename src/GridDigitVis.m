@@ -80,99 +80,113 @@ if ~(mode == "digits" || mode == "residual")
     mode = "digits";
 end
 
-% Generate value sequence according to mode
-if mode == "digits"
-    % Integer / fractional separation (beta base allowed) into discrete digits
-    intPart = floor(symVal);
-    fracPart = symVal - intPart;
-    intDigits = [];
-    if intPart == 0
-        intDigits = 0;
+symValVec = symVal; % alias
+multi = numel(symValVec) > 1;
+
+% helper to extract a single sequence for one symbolic value
+    function seq = extractSeq(oneVal)
+        if mode == "digits"
+            intPart = floor(oneVal);
+            fracPart = oneVal - intPart;
+            intDigits = [];
+            if intPart == 0
+                intDigits = 0;
+            else
+                tmp2 = intPart; loopCap2 = 5e5; it2=0;
+                while tmp2 > 0 && it2 < loopCap2
+                    q2 = floor(tmp2 / baseRadix);
+                    r2 = tmp2 - q2*baseRadix;
+                    d2 = double(floor(r2));
+                    intDigits = [d2 intDigits]; %#ok<AGROW>
+                    tmp2 = q2; it2 = it2 + 1;
+                end
+                if it2 >= loopCap2
+                    warning('GridDigitViz:intLoopCap','Integer digit extraction reached loop cap; result may be incomplete.');
+                end
+            end
+            fracDigits2 = [];
+            if opts.FractionDigits > 0 && (oneVal - floor(oneVal)) ~= 0
+                decPrec2 = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
+                fnum2 = vpa(oneVal - floor(oneVal), decPrec2);
+                for kk=1:opts.FractionDigits
+                    fnum2 = fnum2 * baseRadix;
+                    dkk = floor(fnum2);
+                    fracDigits2(end+1) = double(dkk); %#ok<AGROW>
+                    fnum2 = fnum2 - dkk;
+                end
+            end
+            seq = [intDigits fracDigits2];
+        else
+            intPart = floor(oneVal);
+            fracPart = oneVal - intPart;
+            seq = [];
+            tmp2 = oneVal; loopCap2 = 5e5; it2=0; stackInt2 = [];
+            while tmp2 > 0 && it2 < loopCap2
+                q2 = floor(tmp2 / baseRadix);
+                r2 = tmp2 - q2*baseRadix;
+                stackInt2 = [double(r2/baseRadix) stackInt2]; %#ok<AGROW>
+                tmp2 = q2; it2 = it2 + 1;
+            end
+            if it2 >= loopCap2
+                warning('GridDigitViz:intLoopCap','Integer residual extraction loop cap reached.');
+            end
+            if opts.FractionDigits > 0 && fracPart ~= 0
+                decPrec2 = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
+                fnum2 = vpa(fracPart, decPrec2);
+                for kk=1:opts.FractionDigits
+                    fnum2 = fnum2 * baseRadix;
+                    dWhole2 = floor(fnum2);
+                    resNorm2 = double((fnum2 - dWhole2));
+                    seq = [seq resNorm2]; %#ok<AGROW>
+                    fnum2 = fnum2 - dWhole2;
+                end
+            end
+            seq = [stackInt2 seq]; if isempty(seq); seq = 0; end
+        end
+        if isempty(seq), seq = 0; end
+    end
+
+if ~multi
+    % Single value (retain original square packing behaviour)
+    seqVals = extractSeq(symValVec);
+    numDigits = numel(seqVals);
+    if numDigits == 0, seqVals = 0; numDigits = 1; end
+    if opts.Square
+        side = ceil(sqrt(numDigits)); rows = side; cols = side;
     else
-        tmp = intPart; loopCap = 5e5; it=0;
-        while tmp > 0 && it < loopCap
-            q = floor(tmp / baseRadix);
-            r = tmp - q*baseRadix;
-            d = double(floor(r));
-            intDigits = [d intDigits]; %#ok<AGROW>
-            tmp = q; it = it + 1;
-        end
-        if it >= loopCap
-            warning('GridDigitViz:intLoopCap','Integer digit extraction reached loop cap; result may be incomplete.');
-        end
+        aspect = 16/9; rows = ceil(sqrt(numDigits / aspect)); cols = ceil(numDigits / rows);
     end
-    fracDigits = [];
-    if opts.FractionDigits > 0 && fracPart ~= 0
-        decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
-        fnum = vpa(fracPart, decPrec);
-        for k=1:opts.FractionDigits
-            fnum = fnum * baseRadix;
-            d = floor(fnum);
-            fracDigits(end+1) = double(d); %#ok<AGROW>
-            fnum = fnum - d;
-        end
+    pad = rows*cols - numDigits;
+    if pad > 0
+        padVals = repmat(opts.PadValue,1,pad);
+        seqPadded = [seqVals padVals];
+    else
+        seqPadded = seqVals;
     end
-    seqVals = [intDigits fracDigits];
+    img = reshape(seqPadded, cols, rows)';
 else
-    % Residual mode: capture residual values each step rather than discrete digits
-    % We still perform an expansion but store the residual BEFORE extracting digit.
-    intPart = floor(symVal);
-    fracPart = symVal - intPart;
-    seqVals = [];
-    % integer residual sweep (divide backwards?) -> for visualization, build forward digits but store normalized residual r/baseRadix
-    tmp = symVal;
-    loopCap = 5e5; it=0; stackInt = [];
-    while tmp > 0 && it < loopCap
-        q = floor(tmp / baseRadix);
-        r = tmp - q*baseRadix;
-        % store residual normalized to base span
-        stackInt = [double(r/baseRadix) stackInt]; %#ok<AGROW>
-        tmp = q; it = it + 1;
+    % Multi-n: produce one row per n (ignore square packing)
+    nCount = numel(symValVec);
+    seqCell = cell(nCount,1); maxLen = 0;
+    for ii=1:nCount
+        sRow = extractSeq(symValVec(ii));
+        seqCell{ii} = sRow; maxLen = max(maxLen, numel(sRow));
     end
-    if it >= loopCap
-        warning('GridDigitViz:intLoopCap','Integer residual extraction loop cap reached.');
-    end
-    % fractional residual sweep
-    if opts.FractionDigits > 0 && fracPart ~= 0
-        decPrec = ceil(opts.FractionDigits * log(baseRadix)/log(10)) + 10;
-        fnum = vpa(fracPart, decPrec);
-        for k=1:opts.FractionDigits
-            fnum = fnum * baseRadix;
-            dWhole = floor(fnum);
-            resNorm = double((fnum - dWhole)); % already fractional part after removing digit
-            seqVals = [seqVals resNorm]; %#ok<AGROW>
-            fnum = fnum - dWhole;
+    if opts.Square
+        % square doesn't apply in multi-row mode; warn once
+        if nCount > 1
+            warning('GridDigitViz:multiSquareIgnored','Square layout ignored for multi-row visualization.');
         end
     end
-    seqVals = [stackInt seqVals];
-    if isempty(seqVals); seqVals = 0; end
+    img = nan(nCount, maxLen);
+    for ii=1:nCount
+        rowSeq = seqCell{ii};
+        img(ii,1:numel(rowSeq)) = rowSeq;
+        if numel(rowSeq) < maxLen && ~isnan(opts.PadValue)
+            padFill = repmat(opts.PadValue,1,maxLen-numel(rowSeq)); %#ok<NASGU>
+        end
+    end
 end
-
-numDigits = numel(seqVals);
-if numDigits == 0
-    seqVals = 0; numDigits = 1;
-end
-
-% Layout
-if opts.Square
-    side = ceil(sqrt(numDigits));
-    rows = side; cols = side;
-else
-    % rectangular closer to aspect 16:9
-    aspect = 16/9;
-    rows = ceil(sqrt(numDigits / aspect));
-    cols = ceil(numDigits / rows);
-end
-
-pad = rows*cols - numDigits;
-if pad > 0
-    padVals = repmat(opts.PadValue,1,pad);
-    seqPadded = [seqVals padVals];
-else
-    seqPadded = seqVals;
-end
-
-img = reshape(seqPadded, cols, rows)'; % rows x cols
 
 % Figure
 vis = 'off'; if opts.Show, vis='on'; end
@@ -225,12 +239,8 @@ cb.TickLabels = cellstr(lbl);
 if mode == "digits"
     cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
 else
-    % Show residual scale in units of the base (0 .. baseRadix)
     cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
-    % choose 6 ticks across [0, baseRadix]
-    tickVals = linspace(0, caxisRange(2), 6);
-    cb.Ticks = tickVals;
-    % format labels: integer-like for integer bases, else two decimals
+    tickVals = linspace(0, caxisRange(2), 6); cb.Ticks = tickVals;
     if baseRadix == floor(baseRadix)
         cb.TickLabels = compose('%d', round(tickVals));
     else
@@ -239,17 +249,26 @@ else
 end
 
 if isempty(opts.Title)
-    if mode == "digits"
-        if opts.FractionDigits > 0
-            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits (frac %d)', nVal, baseRadix, opts.FractionDigits);
+    if ~multi
+        if mode == "digits"
+            if opts.FractionDigits > 0
+                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits (frac %d)', nVal, baseRadix, opts.FractionDigits);
+            else
+                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits', nVal, baseRadix);
+            end
         else
-            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g digits', nVal, baseRadix);
+            if opts.FractionDigits > 0
+                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual (frac %d)', nVal, baseRadix, opts.FractionDigits);
+            else
+                ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual', nVal, baseRadix);
+            end
         end
     else
-        if opts.FractionDigits > 0
-            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual (frac %d)', nVal, baseRadix, opts.FractionDigits);
+        nMinLocal = min(nVal); nMaxLocal = max(nVal);
+        if mode == "digits"
+            ttl = sprintf('Schizo sqrt(f(n)) beta %.4g digits, n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
         else
-            ttl = sprintf('Schizo sqrt(f(%d)) beta %.4g residual', nVal, baseRadix);
+            ttl = sprintf('Schizo sqrt(f(n)) beta %.4g residual, n=[%d..%d], rows=%d', baseRadix, nMinLocal, nMaxLocal, numel(nVal));
         end
     end
 else
