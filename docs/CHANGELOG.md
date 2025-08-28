@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.1] - 2025-08-28
+
+### Bugfixes & polish (4.0.1)
+
+- Fix: restored robust name-value parsing in `GridDigitVis` so callers passing 'Mode' (e.g. from `SchizoVis`) are accepted.
+- UI: shown `GridDigitVis` figures now open docked in the MATLAB desktop when `Show=true`.
+- Performance: reduced dynamic reallocations in digit/residual extraction loops (micro-optimizations).
+
 ## [4.0.0] - 2025-08-28
 
 ### Highlights (4.0.0)

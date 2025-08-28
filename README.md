@@ -2,7 +2,7 @@ SchizoVis (v4.0)
 =================
 
 Author: Maziar Moussavi  
-Current Version: 4.0.0 (2025-08)  
+Current Version: 4.0.1 (2025-08-28)  
 Languages: MATLAB (core algorithms + visualization)
 
 Summary
