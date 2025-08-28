@@ -3,7 +3,7 @@ clear; clc; close all;
 
 % Parameters
 nMin = 001; nMax = 101; nStepSize = 2; %#ok<NASGU>
-baseRadix = 2; 
+baseRadix = 5; 
 precisionOrder = 01000; 
 mode = "residual"; % options: "digits", "residual"
 
@@ -115,100 +115,58 @@ end
 
 % (Removed legacy exportNumber feature to reduce switch conflicts)
 
-% -------- Grid digit sweep video (schizo number across n) --------
-% Control grid video generation with the top-level exportVideo flag so both
-% polar and grid videos obey the same setting. Set exportVideo=false to skip all videos.
-% Grid sweep video only if both exportVideo and VisGrid and multiple n values
-if exportVideo && VisGrid && numel(nList) > 1
-	fprintf('SchizoVis: exporting grid digit sweep video across n values...\n');
-	gridFractionDigits = min(precisionOrder, 500); % cap for performance
-	gridVideoName = sprintf('%s_gridSweep', FileName);
+% -------- Grid grid/video export logic (using GridDigitVis) --------
+if exportVideo && VisGrid && numel(nList) >= 1
+	fprintf('SchizoVis: exporting grid video (one frame per n) using GridDigitVis...\n');
 	if ~isfolder(exportFolder); mkdir(exportFolder); end
-	% Determine max integer digit count using last schizo number approx
-	lastNumApprox = vpa(sVals(end), 40);
-	if lastNumApprox > 0
-		maxIntDigits = max(1, floor(double(log(lastNumApprox)/log(baseRadix))) + 1);
-	else
-		maxIntDigits = 1;
-	end
-	maxTotalDigits = maxIntDigits + gridFractionDigits;
-	side = ceil(sqrt(maxTotalDigits)); rowsG = side; colsG = side; frameDigitsCapacity = rowsG*colsG;
-	% Video writer
+	gridVideoName = sprintf('%s_grid', FileName);
+	proceed = true; extG = '.avi';
 	try
 		if videoLossless
-			vwGrid = VideoWriter(fullfile(exportFolder, [gridVideoName '.avi']), 'Uncompressed AVI');
+			vwGrid = VideoWriter(fullfile(exportFolder, [gridVideoName extG]), 'Uncompressed AVI');
 		else
 			try
-				vwGrid = VideoWriter(fullfile(exportFolder, [gridVideoName '.mp4']), 'MPEG-4');
+				extG = '.mp4'; vwGrid = VideoWriter(fullfile(exportFolder, [gridVideoName extG]), 'MPEG-4');
 			catch
-				vwGrid = VideoWriter(fullfile(exportFolder, [gridVideoName '.avi']), 'Motion JPEG AVI');
+				extG = '.avi'; vwGrid = VideoWriter(fullfile(exportFolder, [gridVideoName extG]), 'Motion JPEG AVI');
 			end
 		end
-		vwGrid.FrameRate = min(videoFrameRate, 30);
+		vwGrid.FrameRate = min(videoFrameRate,30);
 		open(vwGrid);
 	catch ME
-		warning(ME.identifier,'Could not open grid sweep video writer: %s', ME.message);
-		exportGridVideo = false;
+		warning(ME.identifier,'Grid video: could not open writer: %s', ME.message);
+		proceed = false;
 	end
-	if exportGridVideo
-	% Figure for grid video (black background for video).
-	% Use docked window for grid visualization to keep it attached to MATLAB desktop.
-	figG = figure('Visible','off','Color','k','Units','pixels','Position',[120 120 800 800], 'WindowStyle', 'docked');
-	axG = axes('Parent',figG); axis(axG,'off'); hold(axG,'on');
-	set(axG,'Color','k');
-	cmapG = parula(baseRadix);
-	colormap(axG, cmapG);
-	caxis(axG,[0 baseRadix-1]);
-	cbG = colorbar(axG,'southoutside'); cbG.Ticks = 0:baseRadix-1;
-	lbl = strings(baseRadix,1); for di=0:baseRadix-1; if di<10, lbl(di+1)=string(di); else, lbl(di+1)=char('A'+(di-10)); end; end; cbG.TickLabels=cellstr(lbl);
-	cbG.Color = [1 1 1]; cbG.Label.Color = [1 1 1];
-	hImg = imagesc(axG, nan(rowsG, colsG)); set(axG,'YDir','reverse'); axis(axG,'image');
+	if proceed
 		for idxN = 1:numel(nList)
-			symVal = sVals(idxN);
-			% integer digit count approx
-			intPart = floor(symVal);
-			intDigits = [];
-			if intPart == 0
-				intDigits = 0;
-			else
-				tmp = intPart; loopCap=1e5; it=0; baseSym = sym(baseRadix);
-				while tmp > 0 && it < loopCap
-					[q,r] = quorem(tmp, baseSym); intDigits = [double(r) intDigits]; %#ok<AGROW>
-					tmp = q; it=it+1;
+			try
+				if mode == "residual"
+					cmapLocal = parula(max(256, floor(baseRadix)*8));
+				else
+					cmapLocal = parula(max(64, floor(baseRadix)*4));
 				end
-			end
-			% fractional digits
-			fracPart = symVal - floor(symVal); fracDigits = [];
-			if gridFractionDigits>0 && fracPart~=0
-				decPrec = ceil(gridFractionDigits * log(baseRadix)/log(10)) + 8;
-				fnum = vpa(fracPart, decPrec);
-				for kfd=1:gridFractionDigits
-					fnum = fnum * baseRadix; d = floor(fnum); fracDigits(end+1)=double(d); %#ok<AGROW>
-					fnum = fnum - d;
+				GridDigitVis(sVals(idxN), baseRadix, '', nList(idxN), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', cmapLocal, 'Transparent', false, 'Show', true);
+				figGV = gcf;
+				% black background for consistency
+				try
+					set(figGV,'Color','k');
+				catch
 				end
-			end
-			allDigitsFrame = [intDigits fracDigits];
-			if numel(allDigitsFrame) > frameDigitsCapacity
-				allDigitsFrame = allDigitsFrame(1:frameDigitsCapacity); % truncate
-			end
-			padNeeded = frameDigitsCapacity - numel(allDigitsFrame);
-			if padNeeded>0
-				allDigitsFrame = [allDigitsFrame nan(1,padNeeded)];
-			end
-			imgFrame = reshape(allDigitsFrame, colsG, rowsG)';
-			% update image
-			hImg.CData = imgFrame;
-			hImg.AlphaData = ~isnan(imgFrame);
-			title(axG, sprintf('Schizo sqrt(f(%d)) base %d frac %d', nList(idxN), baseRadix, gridFractionDigits),'Interpreter','none','Color','w');
-			drawnow limitrate;
-			writeVideo(vwGrid, getframe(figG));
-			if idxN==1 || idxN==numel(nList) || mod(idxN, max(1,round(numel(nList)/10)))==0
-				fprintf('  Grid frame %d/%d (%.1f%%)\n', idxN, numel(nList), 100*idxN/numel(nList));
+				frameGV = getframe(figGV);
+				writeVideo(vwGrid, frameGV);
+				close(figGV);
+				if idxN==1 || idxN==numel(nList) || mod(idxN, max(1,round(numel(nList)/10)))==0
+					fprintf('  Grid frame %d/%d (%.1f%%)\n', idxN, numel(nList), 100*idxN/numel(nList));
+				end
+			catch MEf
+				warning(MEf.identifier,'Grid video: frame %d failed: %s', idxN, MEf.message);
 			end
 		end
-		close(vwGrid);
-		close(figG);
-		fprintf('SchizoVis: grid digit sweep video complete (%s).\n', gridVideoName);
+		try
+			close(vwGrid);
+		catch
+		end
+		fprintf('SchizoVis: grid video export complete (%s).\n', [gridVideoName extG]);
 	end
 end
 
@@ -224,11 +182,15 @@ if exportFigure
 			fprintf('SchizoVis: polar figure exported -> %s , %s\n', figPathFig, figPathPng);
 		end
 		if VisGrid
-			% regenerate / show last grid number (static) for figure export
-			schizoNumber = sVals(end);
 			gridPathFig = fullfile(exportFolder, sprintf('%s_grid.fig', FileName));
 			gridPathPng = fullfile(exportFolder, sprintf('%s_grid.png', FileName));
-			GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', false, 'Show', true);
+			if ~exportVideo
+				% Multi-row static grid of all n values
+				GridDigitVis(sVals, baseRadix, '', nList, 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(128,floor(baseRadix)*8)), 'Transparent', false, 'Show', true);
+			else
+				% When video already produced, optionally export last frame grid only
+				GridDigitVis(sVals(end), baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', false, 'Show', true);
+			end
 			try
 				figGStatic = gcf; savefig(figGStatic, gridPathFig); exportgraphics(figGStatic, gridPathPng, 'Resolution', 150);
 				fprintf('SchizoVis: grid figure exported -> %s , %s\n', gridPathFig, gridPathPng);
@@ -346,19 +308,16 @@ if VisPolar && ~isempty(hScatter)
 end
 
 % Optional Grid visualization (non-export) when VisGrid is enabled and exportNumber not used
-if VisGrid
+if VisGrid && ~exportVideo
 	try
-		schizoNumber = sVals(end);
-		% Show-only call (no file) - static grid view of last sqrt
-		GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', true, 'Show', true);
-		% Dock the created figure if any
+		GridDigitVis(sVals, baseRadix, '', nList, 'FractionDigits', precisionOrder, 'Mode', mode, 'Colormap', parula(max(128,floor(baseRadix)*8)), 'Transparent', true, 'Show', true);
 		try
-			figGrid = gcf;
-			set(figGrid,'WindowStyle','docked');
+			figGrid = gcf; set(figGrid,'WindowStyle','docked');
 		catch
-			% ignore if figure cannot be docked
 		end
 	catch ME
-		warning(ME.identifier, 'Could not create grid visualization: %s', ME.message);
+		warning(ME.identifier, 'Could not create multi-row grid visualization: %s', ME.message);
 	end
+elseif VisGrid && exportVideo
+	% Combined static grid skipped (video frames already produced)
 end
