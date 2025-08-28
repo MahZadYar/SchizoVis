@@ -190,8 +190,10 @@ if mode == "digits"
     caxisRange = [0 digitCount-1];
 else
     % residuals: values assumed in [0,1)
+    % clamp to [0,1) then scale to actual base units (0 .. baseRadix)
     imgD(validMask) = max(0,min(1,imgD(validMask)));
-    caxisRange = [0 1];
+    imgD(validMask) = imgD(validMask) * baseRadix;
+    caxisRange = [0 baseRadix];
 end
 
 % Display image with NaN -> transparent; ensure first element maps to top-left
@@ -223,9 +225,17 @@ cb.TickLabels = cellstr(lbl);
 if mode == "digits"
     cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
 else
+    % Show residual scale in units of the base (0 .. baseRadix)
     cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
-    cb.Ticks = linspace(0,1,6);
-    cb.TickLabels = compose('%.2f',cb.Ticks);
+    % choose 6 ticks across [0, baseRadix]
+    tickVals = linspace(0, caxisRange(2), 6);
+    cb.Ticks = tickVals;
+    % format labels: integer-like for integer bases, else two decimals
+    if baseRadix == floor(baseRadix)
+        cb.TickLabels = compose('%d', round(tickVals));
+    else
+        cb.TickLabels = compose('%.2f', tickVals);
+    end
 end
 
 if isempty(opts.Title)
