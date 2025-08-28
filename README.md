@@ -17,10 +17,10 @@ What's New in v3
 ----------------
 v3 refactors the exploratory v1/v2 scripts into modular, testable components:
 
-* Modular functions in `src/`: `SchizoGen`, `ExpoExpand`, `PolarDigitVis`, `GridDigitViz`.
+* Modular functions in `src/`: `SchizoGen`, `ExpoExpand`, `PolarDigitVis`, `GridDigitVis`.
 * Efficient vectorized expansion of multiple sqrt values across a shared exponent lattice (`ExpoExpand`).
 * Generalized numeral base (any real beta >= 2). For non-integer beta a beta-expansion with digit alphabet 0..floor(beta)-1 is used.
-* Two visualization modalities: stacked polar digit/residual plot and square grid digit image export.
+* Two visualization modalities: stacked polar digit/residual plot and square grid digit/residual image export (shared `mode`).
 * Optional dynamic coloring & sliding window video rendering.
 * Cleaner separation between generation, expansion, and rendering stages.
 * Basic MATLAB unit tests under `tests/`.
@@ -76,9 +76,9 @@ Core Concepts
 
 1. Sequence Construction (`SchizoGen`): Builds symbolic f(n) and sqrt(f(n)) without premature numeric rounding.
 2. Exponent Lattice: A shared descending exponent vector is constructed from the largest sqrt value; defines digit sampling positions.
-3. Batch Expansion (`ExpoExpand`): Vectorized extraction of either discrete digits or residual values for all layers.
-4. Polar Mapping (`PolarDigitVis`): Maps each digit to an angular slot (0..baseRadix-1) and exponent to radial coordinate; layers stack along Z.
-5. Grid Digit Image (`GridDigitViz`): Renders a single sqrt(f(n)) into a square (or rectangular) colored digit raster (integer + fractional digits).
+3. Batch Expansion (`ExpoExpand`): Vectorized extraction of either discrete digits (`mode="digits"`) or normalized residual values (`mode="residual"`).
+4. Polar Mapping (`PolarDigitVis`): Maps each digit to an angular slot; in residual mode color encodes residual magnitude (0–1).
+5. Grid Digit Image (`GridDigitVis`): Renders either digit categories or residual magnitudes (0–1) depending on `mode`.
 
 Example (Minimal)
 -----------------
@@ -101,14 +101,14 @@ Parameter Notes
 * nMin, nMax, nStepSize: Define sampled n values.
 * baseRadix (b): Controls the digit alphabet size and angular segmentation.
 * precisionOrder: The negative depth (|p_min|) of fractional exponent sampling.
-* mode: "digits" uses floor at each position; "residual" carries full residual values for smooth color/position (less common here).
-* exportFigure / exportVideo / exportNumber (in example script) toggle resource-heavy exports.
+* mode: "digits" uses floor at each exponent; "residual" keeps normalized residual values in [0,1) yielding smooth gradients (polar & grid).
+* exportFigure / exportVideo toggle resource-heavy exports (legacy exportNumber removed; derive numbers from digit matrices if needed).
 
 Performance Tips
 ----------------
 
 * Large precisionOrder or large nMax -> high memory; monitor `digitsMat` size (L x M).
-* `ExpoExpand` auto-inflates decimal precision with guard digits; if validation reveals mismatches, increase guard or reduce precision scope.
+* `ExpoExpand` auto-inflates decimal precision with guard digits; if validation reveals mismatches, increase guard or reduce precision scope. Residual mode is slightly more expensive computationally.
 * Video exports (lossless AVI) can become very large; switch to MPEG-4 when acceptable.
 
 Testing
@@ -135,7 +135,7 @@ See `docs/CHANGELOG.md` for detailed entries.
 
 * v1: Initial monolithic script (decimal only, per-layer loops, early 3D scatter & video sweep).
 * v2: Vectorized digit extraction, generalized base parameter, improved guide overlays.
-* v3: Modularization, batch exponent expansion, grid digit image export, dynamic video coloring, repository hygiene.
+* v3: Modularization, batch exponent expansion, grid digit/residual image export, dynamic video coloring, repository hygiene.
 
 Planned / Ideas
 ---------------
