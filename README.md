@@ -71,7 +71,7 @@ Quick Start
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/SchizoVis.git
+git clone https://github.com/MahZadYar/SchizoVis.git
 ```
 
 1. In MATLAB, from the repo root run:
@@ -167,7 +167,7 @@ Citation
 
 If you use SchizoVis (formerly SchizoViz) in research or publications, please cite (CITATION.cff provided):
 
-Moussavi, M. (2025). SchizoVis (Version 3). GitHub repository: [https://github.com/YOUR_GITHUB_USERNAME/SchizoVis](https://github.com/YOUR_GITHUB_USERNAME/SchizoVis)
+Moussavi, M. (2025). SchizoVis (Version 3). GitHub repository: [https://github.com/MahZadYar/SchizoVis](https://github.com/MahZadYar/SchizoVis)
 
 License
 -------
