@@ -18,15 +18,13 @@ videoResolution = [1080 1080];   % figure size during capture ([] keep current)
 videoLastN = inf;                % number of most-recent layers to show in each frame (nf). inf => all up to current
 videoDynamicColors = true;       % recolor visible window each frame spanning colormap (current layer brightest)
 FileName = sprintf('SchizoVis_n%d-%d_b%d_p%d', nMin, nMax, baseRadix, precisionOrder);
-% Optionally export the concatenated integer itself as a square-digit image
-exportNumber = false; % if true, export the last f(n) digits in target base as a square image
 % Export folder (where figures/videos will be written)
 exportFolder = pwd; % default to current working directory; set to absolute path to override
 exportFolder = "D:\~Projects\SchizoVis";
 
 % Visualization switches
-VisPolar = false;  % enable stacked polar visualization
-VisGrid  = true;  % enable grid-digit visualization
+VisPolar = false; % show polar stacked visualization
+VisGrid  = true;  % show grid digit visualization (last sqrt only for static; sweep video if exportVideo)
 
 numDigits = precisionOrder + nMax + 10; % how many fractional digits to show in the exported number image
 digits(numDigits);
@@ -71,7 +69,7 @@ else
 	fprintf('SchizoVis: VisPolar is false, skipping PolarDigitVis\n');
 	hScatter = []; ax = []; fig = [];
 end
-% Derive clockR & zRange similar to PolarDigitVis for consistent axis locking
+% Derive clockR & zRange similar to PolarDigitVis for consistent axis locking (only if polar exists)
 gmax = exponents(1);
 if gmax > 0
 	r_vals = 1 - exponents / gmax;
@@ -83,9 +81,6 @@ else
 		r_vals = (exponents - emin)/(0 - emin);
 	end
 end
-clockR = max(r_vals);
-L = size(digitsMat,1); zRange = [0 clockR];
-padFrac = 0.03; xr = 2*clockR; pad = padFrac * xr;
 clockR = max(r_vals);
 L = size(digitsMat,1); zRange = [0 clockR];
 padFrac = 0.03; xr = 2*clockR; pad = padFrac * xr;
@@ -118,36 +113,13 @@ else
 	M = numel(exponents);
 end
 
-% -------- Export Schizo number (sqrt) as pixel digit image --------
-if exist('exportNumber','var') && exportNumber
-	try
-		if ~isfolder(exportFolder); mkdir(exportFolder); end
-		schizoNumber = sVals(end); % sqrt(f(n_last))
-		outFile = fullfile(exportFolder, sprintf('%s_schizo_n%d_base%d.png', FileName, nList(end), baseRadix));
-		try
-			cmapForNum = colormap(ax);
-			if isempty(cmapForNum)
-				cmapForNum = parula(baseRadix);
-			end
-		catch
-			cmapForNum = parula(baseRadix);
-		end
-	% Render fractional digits up to configured precisionOrder by default
-	fractionDigits = precisionOrder;
-	GridDigitVis(schizoNumber, baseRadix, outFile, nList(end), 'FractionDigits', fractionDigits, 'Colormap', cmapForNum, 'Transparent', true, 'Show', true);
-		fprintf('SchizoVis: exported schizo number image -> %s\n', outFile);
-	catch ME
-		warning(ME.identifier,'Could not export schizo number image: %s', ME.message);
-	end
-end
+% (Removed legacy exportNumber feature to reduce switch conflicts)
 
 % -------- Grid digit sweep video (schizo number across n) --------
 % Control grid video generation with the top-level exportVideo flag so both
 % polar and grid videos obey the same setting. Set exportVideo=false to skip all videos.
-% Videos obey both the global exportVideo flag and the per-visualization switches
-exportGridVideo = exportVideo && VisGrid; % only produce grid video when VisGrid enabled
-exportPolarVideo = exportVideo && VisPolar; % only produce polar video when VisPolar enabled
-if exportGridVideo && numel(nList) > 1
+% Grid sweep video only if both exportVideo and VisGrid and multiple n values
+if exportVideo && VisGrid && numel(nList) > 1
 	fprintf('SchizoVis: exporting grid digit sweep video across n values...\n');
 	gridFractionDigits = min(precisionOrder, 500); % cap for performance
 	gridVideoName = sprintf('%s_gridSweep', FileName);
@@ -243,21 +215,34 @@ end
 % -------- Figure export --------
 if exportFigure
 	try
-		if ~isfolder(exportFolder)
-			mkdir(exportFolder);
+		if ~isfolder(exportFolder); mkdir(exportFolder); end
+		if VisPolar && ~isempty(fig) && isgraphics(fig)
+			figPathFig = fullfile(exportFolder, sprintf('%s_polar.fig', FileName));
+			figPathPng = fullfile(exportFolder, sprintf('%s_polar.png', FileName));
+			savefig(fig, figPathFig);
+			exportgraphics(fig, figPathPng, 'Resolution', 150);
+			fprintf('SchizoVis: polar figure exported -> %s , %s\n', figPathFig, figPathPng);
 		end
-	figPathFig = fullfile(exportFolder, sprintf('%s_polar.fig', FileName));
-	figPathPng = fullfile(exportFolder, sprintf('%s_polar.png', FileName));
-		savefig(fig, figPathFig);
-		exportgraphics(fig, figPathPng, 'Resolution', 150);
-		fprintf('SchizoVis: figure exported -> %s , %s\n', figPathFig, figPathPng);
+		if VisGrid
+			% regenerate / show last grid number (static) for figure export
+			schizoNumber = sVals(end);
+			gridPathFig = fullfile(exportFolder, sprintf('%s_grid.fig', FileName));
+			gridPathPng = fullfile(exportFolder, sprintf('%s_grid.png', FileName));
+			GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', false, 'Show', true);
+			try
+				figGStatic = gcf; savefig(figGStatic, gridPathFig); exportgraphics(figGStatic, gridPathPng, 'Resolution', 150);
+				fprintf('SchizoVis: grid figure exported -> %s , %s\n', gridPathFig, gridPathPng);
+			catch ME2
+				warning(ME2.identifier,'Grid figure export failed: %s', ME2.message);
+			end
+		end
 	catch ME
-		warning(ME.identifier, 'Figure export failed: %s', ME.message);
+		warning(ME.identifier,'Figure export failed: %s', ME.message);
 	end
 end
 
 % -------- Video export (progressive reveal) --------
-if exportVideo
+if exportVideo && VisPolar && ~isempty(hScatter)
 	vLayers = min(videoLayers, L);
 	fprintf('SchizoVis: exporting video (%d layers -> frames) to %s ...\n', vLayers, [FileName '_polar']);
 	% VideoWriter setup
@@ -352,18 +337,20 @@ if exportVideo
 end
 
 % (Optionally could restore full scatter data if modified during video) 
-try
-	set(hScatter,'XData',allX,'YData',allY,'ZData',allZ);
-catch ME
-	warning(ME.identifier,'Could not restore scatter data: %s', ME.message);
+if VisPolar && ~isempty(hScatter)
+	try
+		set(hScatter,'XData',allX,'YData',allY,'ZData',allZ);
+	catch ME
+		warning(ME.identifier,'Could not restore scatter data: %s', ME.message);
+	end
 end
 
 % Optional Grid visualization (non-export) when VisGrid is enabled and exportNumber not used
-if VisGrid && ~(exist('exportNumber','var') && exportNumber)
+if VisGrid
 	try
 		schizoNumber = sVals(end);
-		% Show-only call (no file) - GridDigits accepts Show flag
-		GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Colormap', parula(baseRadix), 'Transparent', true, 'Show', true);
+		% Show-only call (no file) - static grid view of last sqrt
+		GridDigitVis(schizoNumber, baseRadix, '', nList(end), 'FractionDigits', precisionOrder, 'Colormap', parula(max(64,floor(baseRadix)*4)), 'Transparent', true, 'Show', true);
 		% Dock the created figure if any
 		try
 			figGrid = gcf;
