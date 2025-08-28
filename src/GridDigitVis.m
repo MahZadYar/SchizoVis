@@ -30,6 +30,8 @@ opts.ColorScale = 'exponential'; % 'linear' or 'exponential'
 opts.Figure = [];
 opts.FigureName = '';
 opts.Tag = '';
+
+% Parse name-value pairs in varargin (case-insensitive keys)
 if ~isempty(varargin)
     for k=1:2:numel(varargin)
         key = lower(string(varargin{k})); val = varargin{k+1};
@@ -52,27 +54,6 @@ if ~isempty(varargin)
     end
 end
 
-% Resolve digit count (alphabet size) for integer / beta base
-digitCount = ceil(baseRadix);
-if digitCount < 1
-    error('GridDigitViz:digitCount','floor(baseRadix) must be >= 1');
-end
-% Resolve colormap
-if isempty(opts.Colormap)
-    % Use full-resolution parula (256) to avoid low-base banding artifacts
-    opts.Colormap = parula(256);
-elseif ischar(opts.Colormap) || isstring(opts.Colormap)
-    try
-        cf = str2func(char(opts.Colormap));
-        opts.Colormap = cf(256);
-    catch
-        warning('GridDigitViz:colormap','Could not resolve colormap %s, using parula(256).', string(opts.Colormap));
-        opts.Colormap = parula(256);
-    end
-end
-if size(opts.Colormap,2)~=3
-    error('GridDigitViz:colormapShape','Colormap must be Nx3');
-end
 % Ensure we work with a high-resolution base map (>=256 rows recommended)
 % Prepare mode and input vectorization
 mode = string(opts.Mode);
@@ -193,6 +174,67 @@ if ~multi
 else
     % Multi-n: produce one row per n (ignore square packing)
     nCount = numel(symValVec);
+    fastApplied = false;
+    if isnumeric(symValVec) && isfinite(baseRadix) && baseRadix>1 && all(isfinite(symValVec)) && numel(baseRadix)==1
+        % Lightweight fast path (integer part only, no symbolic vpa) to cut loop overhead
+        try
+            ints = floor(symValVec);
+            tmp = ints; loopCap = 5e5; it=0; colCells = {};
+            while any(tmp>0) && it<loopCap
+                q = floor(tmp/baseRadix);
+                r = tmp - q*baseRadix;
+                colCells{end+1} = double(floor(r)); %#ok<AGROW>
+                tmp = q; it = it+1;
+            end
+            if isempty(colCells)
+                intMat = zeros(nCount,1);
+                counts = ones(nCount,1); % zero -> single zero digit
+            else
+                matLSB = cell2mat(colCells); % nCount x numCols
+                if size(matLSB,1)~=nCount, matLSB(end+1:nCount,:) = 0; end %#ok<AGROW>
+                counts = sum(matLSB> -inf,2); % every row touched until tmp==0
+                counts(ints==0)=1;
+                intMat = fliplr(matLSB); % MSB->LSB
+            end
+            maxInt = max(counts);
+            % Fractional part (if requested)
+            fracLen = opts.FractionDigits;
+            if fracLen>0
+                fVec = symValVec - ints;
+                fracMat = zeros(nCount, fracLen);
+                for kk=1:fracLen
+                    fVec = fVec * baseRadix;
+                    dkk = floor(fVec);
+                    fracMat(:,kk) = double(dkk);
+                    fVec = fVec - dkk;
+                end
+            else
+                fracMat = [];
+            end
+            maxLen = maxInt + fracLen;
+            img = nan(nCount, maxLen);
+            for rr=1:nCount
+                c = counts(rr);
+                rowDigits = intMat(rr, end-c+1:end);
+                leadPad = maxInt - c;
+                if leadPad>0, img(rr,1:leadPad)=0; end
+                startIdx = leadPad+1;
+                img(rr,startIdx:startIdx+c-1) = rowDigits;
+                if fracLen>0
+                    img(rr,startIdx+c:startIdx+c+fracLen-1)=fracMat(rr,:);
+                end
+            end
+            % Build seqCell for downstream tick logic (integer+fraction per row)
+            seqCell = cell(nCount,1);
+            for rr=1:nCount
+                seqCell{rr} = img(rr, ~isnan(img(rr,:)));
+            end
+            fastApplied = true;
+        catch
+            fastApplied = false; % fallback
+        end
+    end
+    if ~fastApplied
     % Precompute sequences and lengths to avoid repeated dynamic growth
     seqCell = cell(nCount,1);
     seqLens = zeros(nCount,1);
@@ -239,6 +281,7 @@ else
             end
         end
     end
+    end % fastApplied fallback
 end
 
 % Figure (allow reuse)
@@ -267,6 +310,14 @@ else
     if ~isempty(opts.FigureName), figArgs = [figArgs {'Name',opts.FigureName}]; end %#ok<AGROW>
     if ~isempty(opts.Tag), figArgs = [figArgs {'Tag',opts.Tag}]; end %#ok<AGROW>
     fig = figure(figArgs{:});
+end
+% If the user requested to show the figure, prefer a docked window in the MATLAB desktop
+try
+    if opts.Show
+        set(fig,'WindowStyle','docked');
+    end
+catch
+    % some environments may not support docking; ignore failures
 end
 ax = axes('Parent',fig); hold(ax,'on');
 if opts.Transparent, set(ax,'Color','none'); end
