@@ -214,27 +214,33 @@ end
 imAlpha = validMask;
 imagesc(ax, imgD, 'AlphaData', imAlpha);
 set(ax,'YDir','reverse'); % first row at top
-axis(ax,'image');
+% Fill available axes area (do not force equal axis) so image stretches to figure
+axis(ax,'tight');
+% leave axes position space for a right-side colorbar
+try
+    set(ax,'Units','normalized','Position',[0.06 0.07 0.86 0.88]);
+catch
+end
 
 % If multi-row, show axis ticks: y -> n values, x -> exponent positions
 if multi
-    % show axes
+    % show axes and label major ticks only
     axis(ax,'on');
-    % y ticks correspond to rows (1..nCount) and label with provided nVal
+    % y ticks: choose a few major ticks (up to 6) to label n values
     try
-        yTicks = 1:size(img,1);
-        % nVal may be numeric array or symbolic; convert to numeric/str
+        nCountLocal = size(img,1);
+        nMajor = min(6, nCountLocal);
+        yTickPos = unique(round(linspace(1, nCountLocal, nMajor)));
         if isnumeric(nVal)
-            yLabels = arrayfun(@(x) sprintf('%d',x), nVal, 'UniformOutput', false);
+            yTickLabels = arrayfun(@(x) sprintf('%d',x), nVal(yTickPos), 'UniformOutput', false);
         else
-            yLabels = arrayfun(@(x) char(x), nVal, 'UniformOutput', false);
+            yTickLabels = arrayfun(@(x) char(x), nVal(yTickPos), 'UniformOutput', false);
         end
-        set(ax,'YTick',yTicks,'YTickLabel',yLabels);
+        set(ax,'YTick', yTickPos, 'YTickLabel', yTickLabels);
     catch
-        % fallback: show numeric indices only
-        set(ax,'YTick',1:size(img,1));
+        set(ax,'YTick', unique(round(linspace(1,size(img,1),min(6,size(img,1))))));
     end
-    % compute exponent mapping: assume each row has integer digits then fractional digits
+    % x ticks: show exponent numeric values (no leading 'p')
     try
         seqLens = cellfun(@numel, seqCell);
         intCounts = max(0, seqLens - opts.FractionDigits);
@@ -242,15 +248,13 @@ if multi
         leftExp = maxInt - 1;
         maxLenLocal = size(img,2);
         colExps = leftExp - (0:(maxLenLocal-1));
-        % choose up to 8 xticks evenly
-        nTicks = min(8, maxLenLocal);
-        xTickPos = unique(round(linspace(1, maxLenLocal, nTicks)));
-        xTickLabels = arrayfun(@(p) sprintf('p%d',p), colExps(xTickPos), 'UniformOutput', false);
+        nXT = min(8, maxLenLocal);
+        xTickPos = unique(round(linspace(1, maxLenLocal, nXT)));
+        xTickLabels = arrayfun(@(p) sprintf('%d',colExps(p)), xTickPos, 'UniformOutput', false);
         set(ax,'XTick', xTickPos, 'XTickLabel', xTickLabels);
-        xlabel(ax,'exponent (p)'); ylabel(ax,'n');
+        xlabel(ax,'exponent'); ylabel(ax,'n');
     catch
-        % fallback: show simple column indices
-        set(ax,'XTick',1:size(img,2));
+        set(ax,'XTick',[]);
     end
 else
     axis(ax,'off');
@@ -262,7 +266,7 @@ else
     colormap(ax, interp1(linspace(0,1,size(opts.Colormap,1)), opts.Colormap, linspace(0,1,256)));
 end
 caxis(ax,caxisRange);
-cb = colorbar(ax,'southoutside');
+cb = colorbar(ax,'eastoutside');
 ticks = 0:digitCount-1;
 cb.Ticks = ticks;
 % tick labels (0-9 A B ...)
@@ -275,18 +279,18 @@ for i=1:numel(ticks)
         lbl(i) = char('A' + (d-10));
     end
 end
-cb.TickLabels = cellstr(lbl);
-if mode == "digits"
-    cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
-else
-    cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
-    tickVals = linspace(0, caxisRange(2), 6); cb.Ticks = tickVals;
-    if baseRadix == floor(baseRadix)
-        cb.TickLabels = compose('%d', round(tickVals));
+    cb.TickLabels = cellstr(lbl);
+    if mode == "digits"
+        cb.Label.String = sprintf('Digits (beta %.4g, alphabet 0..%d)', baseRadix, digitCount-1);
     else
-        cb.TickLabels = compose('%.2f', tickVals);
+        cb.Label.String = sprintf('Residual (beta %.4g)', baseRadix);
+        tickVals = linspace(0, caxisRange(2), 6); cb.Ticks = tickVals;
+        if baseRadix == floor(baseRadix)
+            cb.TickLabels = compose('%d', round(tickVals));
+        else
+            cb.TickLabels = compose('%.2f', tickVals);
+        end
     end
-end
 
 % Build a TeX-friendly title with root symbol and compact params
 if isempty(opts.Title)
@@ -315,8 +319,10 @@ if isempty(opts.Title)
 else
     ttl = opts.Title;
 end
-% Use TeX interpreter so root sign and beta render nicely
-title(ax, ttl, 'Interpreter', 'tex');
+% Use plain root character and no interpreter (portable rendering)
+ttl = strrep(ttl,'\\surd','√');
+ttl = strrep(ttl,'\\;',' | ');
+title(ax, ttl, 'Interpreter', 'none');
 
 % Export
 outPath = '';
