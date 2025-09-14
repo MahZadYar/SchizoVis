@@ -1,11 +1,64 @@
 function h = PolarDigitVis(exponents, digitsMat, baseRadix, varargin)
-% PolarDigitVis  Unified 2D/3D stacked radial digit plot (V2 style).
-%   h = PolarDigitVis(E, D, base) where:
-%     E : 1xM exponent vector (descending)
-%     D : LxM digit/residual matrix OR 1xM vector (treated as single layer)
-%     baseRadix : numeral base
-%   Produces a clock-like radial layout per exponent column, stacking
-%   layers along Z in [0, zMax].
+%POLARDIGITVIS Creates a 2D or 3D stacked polar visualization of digit data.
+%   h = POLARDIGITVIS(exponents, digitsMat, baseRadix) generates a polar
+%   plot where each point's angle is determined by its digit/residual value
+%   and its radius is determined by its corresponding exponent. When given
+%   a matrix of digit data, the function stacks each row along the z-axis,
+%   creating a 3D visualization of evolving digit structures.
+%
+%   Syntax:
+%       h = PolarDigitVis(exponents, digitsMat, baseRadix)
+%       h = PolarDigitVis(..., Name, Value)
+%
+%   Input Arguments:
+%       - exponents (double) - A 1xM vector of descending exponents that
+%         determines the radial position of each point.
+%       - digitsMat (double) - An LxM matrix where each row represents a
+%         sequence of digits or residuals to be plotted. A 1xM vector is
+%         treated as a single layer.
+%       - baseRadix (double) - The numeral base (b > 1) used to map digit
+%         values to angles.
+%
+%   Name-Value Pair Arguments:
+%       - 'Figure' (handle) - An existing figure handle to draw on. If
+%         empty, a new figure is created. Default: [].
+%       - 'Colormap' (matrix) - An Nx3 colormap matrix. Default: parula(256).
+%       - 'ReverseColormap' (logical) - If true, reverses the colormap.
+%         Default: false.
+%       - 'Title' (char/string) - A title for the plot. Default: ''.
+%       - 'LayerZRange' (double) - A [min, max] vector specifying the range
+%         for the z-axis stacking. Default: [0, max_radius].
+%       - 'DigitGuides' (logical) - If true, displays radial spokes and
+%         labels for integer digits. Default: true.
+%       - 'RepeatGuides' (logical) - If true, displays guides for repeating
+%         fractions (e.g., 1/9 in base 10). Default: true.
+%       - 'MarkerSize' (double) - The size of the plotted markers.
+%         Default: 4.
+%       - 'ColorMode' (char/string) - The coloring scheme. 'layer' assigns
+%         a unique color to each row/layer. 'point' colors points based on
+%         their radius. Default: 'layer'.
+%       - 'View' (char/string) - The camera view. 'top' for a 2D top-down
+%         view, or '3d' for a perspective view. Default: 'top'.
+%
+%   Output Arguments:
+%       - h (handle) - The handle to the scatter3 graphics object.
+%
+%   Examples:
+%       % Visualize a single layer of digits
+%       exponents = 5:-1:-5;
+%       digits = randi(10, 1, 11) - 1;
+%       figure;
+%       PolarDigitVis(exponents, digits, 10, 'Title', 'Single Layer');
+%
+%       % Visualize multiple layers with custom styling
+%       [~, sVals] = SchizoGen(1:5, 4);
+%       exponents = 2:-1:-10;
+%       digitsMat = ExpoExpand(sVals, exponents, 10, 4, 'digits');
+%       figure;
+%       PolarDigitVis(exponents, digitsMat, 4, 'View', '3d', ...
+%           'Colormap', hot(256), 'MarkerSize', 8);
+%
+%   See also: SchizoGen, ExpoExpand, GridDigitVis
 
 if isvector(digitsMat)
     digitsMat = digitsMat(:)'; % force 1xM
