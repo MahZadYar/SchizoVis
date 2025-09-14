@@ -1,7 +1,44 @@
 function [fVals, sVals] = SchizoGen(n, baseRadix)
-% SchizoGen Build concatenated integer(s) 1..n (symbolic only)
-% f(0)=0, f(k)=baseRadix*f(k-1)+k. Accepts scalar or vector n.
-% Returns symbolic f(n) values and symbolic sqrt(f(n)); no vpa here.
+%SCHIZOGEN Generates terms of the "schizophrenic" number sequence.
+%   [fVals, sVals] = SCHIZOGEN(n, baseRadix) computes the sequence defined
+%   by f(0) = 0 and f(k) = baseRadix * f(k-1) + k for each integer k in the
+%   input vector n. The function operates symbolically to avoid premature
+%   rounding, making it suitable for high-precision analysis.
+%
+%   This process is equivalent to concatenating digits in the given base.
+%   For example, in base 10, f(3) is 123. For non-integer bases, it
+%   produces a generalized beta-expansion style sequence.
+%
+%   Syntax:
+%       [fVals, sVals] = SchizoGen(n)
+%       [fVals, sVals] = SchizoGen(n, baseRadix)
+%
+%   Input Arguments:
+%       - n (double) - A scalar or vector of positive integers specifying
+%         the sequence terms to compute.
+%       - baseRadix (double) - The numeral base to use for the sequence
+%         generation. Must be a value greater than 1. Defaults to 10.
+%
+%   Output Arguments:
+%       - fVals (sym) - A symbolic array containing the computed f(k)
+%         values, with the same dimensions as the input n.
+%       - sVals (sym) - A symbolic array containing the square roots of the
+%         f(k) values (sqrt(f(k))), with the same dimensions as n.
+%
+%   Examples:
+%       % Generate the first 5 terms of the sequence in base 10
+%       n_values = 1:5;
+%       [f, s] = SchizoGen(n_values, 10);
+%       disp('f(k) values:');
+%       disp(f);
+%       disp('sqrt(f(k)) values:');
+%       disp(s);
+%
+%       % Generate a single term in a non-integer base
+%       [f_beta, s_beta] = SchizoGen(3, 1.5);
+%       disp(f_beta);
+%
+%   See also: ExpoExpand, PolarDigitVis, GridDigitVis
 
 arguments
     n double {mustBePositive}

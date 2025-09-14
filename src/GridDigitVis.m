@@ -1,21 +1,71 @@
 function [outPath, hStruct] = GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)
-% GridDigitViz  Visualize a (possibly non-integer) symbolic number in base-R as a pixel image.
-% Each digit (integer part + optional fractional part) becomes one pixel colored via a colormap.
-% outPath = GridDigitViz(symVal, baseRadix, outFile, nVal, Name,Value...)
+%GRIDDIGITVIS Visualizes symbolic numbers as a grid of colored digits.
+%   [outPath, hStruct] = GRIDDIGITVIS(symVal, baseRadix, outFile, nVal)
+%   generates an image where each "pixel" corresponds to a digit in the
+%   base-b expansion of a symbolic value. It can visualize a single number
+%   in a square grid or multiple numbers as a multi-row image with aligned
+%   decimal points.
 %
-% Name-Value options:
-%   'FractionDigits' : number of fractional base-R digits (default 0)
-%   'Colormap'       : colormap name or Nx3 matrix (default parula(baseRadix))
-%   'Transparent'    : true/false PNG transparency (default false)
-%   'Title'          : custom title string (auto if empty)
-%   'PadValue'       : value used for padding (NaN => transparent gaps) (default NaN)
-%   'Square'         : true to force square layout (default true)
-%   'Show'           : show figure (default false)
-%   'MaxSide'        : target figure side in pixels (default 1000)
-%   'Mode'           : 'digits' (default) or 'residual' (continuous base expansion values)
-%   'ColorScale'     : 'linear' (default) or 'exponential' - mapping for continuous residual colormap
+%   The function supports two modes: 'digits' mode colors pixels based on
+%   discrete digit values, while 'residual' mode uses a continuous colormap
+%   to represent the fractional part at each step of the expansion.
 %
-% NOTE: For very large integer parts this performs symbolic division; may be slow.
+%   Syntax:
+%       [outPath, hStruct] = GridDigitVis(symVal, baseRadix, outFile, nVal)
+%       [outPath, hStruct] = GridDigitVis(..., Name, Value)
+%
+%   Input Arguments:
+%       - symVal (sym) - A scalar or vector of symbolic values to visualize.
+%       - baseRadix (double) - The numeral base (b > 1) for the expansion.
+%       - outFile (char/string) - The path to save the output image. If
+%         empty, no image is saved. Default: ''.
+%       - nVal (double/char/string) - The 'n' value(s) corresponding to the
+%         input symVal, used for generating titles.
+%
+%   Name-Value Pair Arguments:
+%       - 'FractionDigits' (double) - Number of fractional digits to
+%         include in the expansion. Default: 0.
+%       - 'Colormap' (matrix) - An Nx3 colormap matrix. Default: parula.
+%       - 'Transparent' (logical) - If true, saves the image with a
+%         transparent background. Default: false.
+%       - 'Title' (char/string) - A custom title for the plot. An automatic
+%         title is generated if empty. Default: ''.
+%       - 'PadValue' (double) - Value used for padding empty pixels in the
+%         grid. NaN results in transparent padding. Default: NaN.
+%       - 'Square' (logical) - If true and a single symbolic value is
+%         provided, forces the grid into a square layout. Ignored for
+%         multi-value inputs. Default: true.
+%       - 'Show' (logical) - If true, displays the generated figure.
+%         Default: false.
+%       - 'MaxSide' (double) - Target figure side length in pixels for new
+%         figures. Default: 1000.
+%       - 'Mode' (char/string) - Expansion mode. 'digits' for discrete
+%         digits or 'residual' for continuous values. Default: 'residual'.
+%       - 'ColorScale' (char/string) - Colormap scaling for 'residual' mode.
+%         'linear' or 'exponential'. Default: 'exponential'.
+%       - 'Figure' (handle) - An existing figure handle to draw on. If
+%         empty, a new figure is created. Default: [].
+%       - 'FigureName' (char/string) - Name for the figure window.
+%       - 'Tag' (char/string) - Tag for the figure object.
+%
+%   Output Arguments:
+%       - outPath (char) - The full path to the saved image file. Empty if
+%         saving was skipped or failed.
+%       - hStruct (struct) - A struct containing handles to the created
+%         graphics objects (figure, axes, image, colorbar).
+%
+%   Examples:
+%       % Visualize the digits of a single number
+%       [~, sVal] = SchizoGen(20, 10);
+%       GridDigitVis(sVal, 10, 'num20.png', 20, 'FractionDigits', 50, ...
+%           'Show', true, 'Mode', 'digits');
+%
+%       % Visualize multiple numbers with aligned decimal points
+%       [~, sVals] = SchizoGen(15:20, 4);
+%       GridDigitVis(sVals, 4, 'multi_n.png', 15:20, 'Show', true, ...
+%           'FractionDigits', 20, 'Mode', 'residual');
+%
+%   See also: SchizoGen, ExpoExpand, PolarDigitVis
 
 opts.FractionDigits = 0;
 opts.Colormap = [];

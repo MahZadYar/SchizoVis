@@ -1,12 +1,53 @@
 function digitsOrResiduals = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode)
-% ExpoExpand  Vectorized expansion of multiple sqrt values across exponent range.
-%   digitsOrResiduals = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode)
-%   sVals        : Lx1 (or 1xL) symbolic sqrt values (sqrt(f(n))) kept symbolic until here.
-%   exponents    : 1xM descending exponent vector (same for all layers).
-%   precisionOrder: nonnegative integer specifying negative exponent depth (already reflected in exponents).
-%   baseRadix    : base > 1.
-%   mode         : "digits" or "residual".
-% Returns an LxM numeric matrix where each row corresponds to one sVal expansion.
+%EXPOEXPAND Vectorized base-b expansion of multiple symbolic values.
+%   D = EXPOEXPAND(S, E, P, B, M) computes the base-b expansion for a
+%   vector of symbolic values S across a shared grid of exponents E. This
+%   function is optimized for expanding multiple numbers (e.g., sqrt(f(n))
+%   from SchizoGen) simultaneously, which is more efficient than processing
+%   them individually.
+%
+%   The function can operate in two modes: 'digits' mode, which extracts
+%   the integer digits of the expansion, or 'residual' mode, which returns
+%   the continuous residual values at each exponent step.
+%
+%   Syntax:
+%       digitsOrResiduals = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode)
+%
+%   Input Arguments:
+%       - sVals (sym) - A vector (Lx1 or 1xL) of symbolic values to be
+%         expanded. These are typically the sqrt(f(n)) values from SchizoGen.
+%       - exponents (double) - A 1xM vector of descending exponents that
+%         defines the sampling positions for the expansion.
+%       - precisionOrder (double) - A non-negative integer that specifies
+%         the depth of fractional exponents. This value is used for context
+%         but is assumed to be already incorporated into the 'exponents' vector.
+%       - baseRadix (double) - The numeral base (b > 1) for the expansion.
+%         Can be a non-integer (for beta-expansions).
+%       - mode (string) - The expansion mode. Must be either "digits" to
+%         extract integer digits (0..floor(b)-1) or "residual" to get
+%         continuous values in [0, b).
+%
+%   Output Arguments:
+%       - digitsOrResiduals (double) - An LxM matrix where each row contains
+%         the expansion of the corresponding value from sVals. The content
+%         of the matrix depends on the selected 'mode'.
+%
+%   Notes:
+%       The function includes an optional internal validation mechanism to
+%       check the precision of the expansion. To enable it, set the
+%       'enableValidation' flag to true within the function's body.
+%
+%   Examples:
+%       % Generate symbolic square roots
+%       [~, sVals] = SchizoGen(1:3, 10);
+%       % Define an exponent range
+%       exponents = 2:-1:-2;
+%       precisionOrder = 2;
+%       % Get integer digits
+%       digitsMat = ExpoExpand(sVals, exponents, precisionOrder, 10, "digits");
+%       disp(digitsMat);
+%
+%   See also: SchizoGen, PolarDigitVis, GridDigitVis, expoExpandBatch
 
 arguments
     sVals {mustBeNonempty}
