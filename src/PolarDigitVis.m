@@ -1,11 +1,38 @@
 function h = PolarDigitVis(exponents, digitsMat, baseRadix, varargin)
-% PolarDigitVis  Unified 2D/3D stacked radial digit plot (V2 style).
-%   h = PolarDigitVis(E, D, base) where:
-%     E : 1xM exponent vector (descending)
-%     D : LxM digit/residual matrix OR 1xM vector (treated as single layer)
-%     baseRadix : numeral base
-%   Produces a clock-like radial layout per exponent column, stacking
-%   layers along Z in [0, zMax].
+%POLARDIGITVIS Create a stacked 2D or 3D radial plot of digits.
+%   h = PolarDigitVis(exponents, digitsMat, baseRadix, Name, Value...)
+%   creates a polar visualization of a matrix of digits or residuals.
+%   Each column of `digitsMat` corresponds to an exponent and is mapped to a
+%   radial distance, while the digit values are mapped to angles. Multiple
+%   rows in `digitsMat` are stacked along the Z-axis.
+%
+%   Inputs:
+%       exponents  - A 1xM numeric vector of descending exponents.
+%       digitsMat  - An LxM numeric matrix of digits or residuals.
+%       baseRadix  - The numeral base (radix) used for angular mapping.
+%
+%   Name-Value Pair Arguments:
+%       'Figure'          - A handle to an existing figure to reuse.
+%       'Colormap'        - A colormap name or an Nx3 matrix of RGB values.
+%       'ReverseColormap' - Logical true to reverse the colormap. Default
+%                           is false.
+%       'Title'           - A custom title string for the plot.
+%       'LayerZRange'     - A two-element vector [z_min, z_max] defining the
+%                           range for Z-axis stacking.
+%       'DigitGuides'     - Logical true to display radial lines for integer
+%                           digit positions. Default is true.
+%       'RepeatGuides'    - Logical true to show guides for repeating
+%                           fractions. Default is true.
+%       'MarkerSize'      - The size of the markers in the scatter plot.
+%                           Default is 4.
+%       'ColorMode'       - 'layer' or 'point'. 'layer' assigns one color
+%                           per row in `digitsMat`. 'point' colors markers
+%                           based on their radial position. Default is 'layer'.
+%       'View'            - 'top' for a 2D view or '3d' for a 3D perspective
+%                           view. Default is 'top'.
+%
+%   Outputs:
+%       h - A handle to the scatter plot object.
 
 if isvector(digitsMat)
     digitsMat = digitsMat(:)'; % force 1xM

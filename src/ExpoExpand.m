@@ -1,12 +1,36 @@
 function digitsOrResiduals = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode)
-% ExpoExpand  Vectorized expansion of multiple sqrt values across exponent range.
+%EXPOEXPAND Vectorized base-radix expansion of symbolic values.
 %   digitsOrResiduals = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode)
-%   sVals        : Lx1 (or 1xL) symbolic sqrt values (sqrt(f(n))) kept symbolic until here.
-%   exponents    : 1xM descending exponent vector (same for all layers).
-%   precisionOrder: nonnegative integer specifying negative exponent depth (already reflected in exponents).
-%   baseRadix    : base > 1.
-%   mode         : "digits" or "residual".
-% Returns an LxM numeric matrix where each row corresponds to one sVal expansion.
+%   expands a vector of symbolic values (sVals) into a matrix of digits or
+%   residuals in a specified base (baseRadix) across a range of exponents.
+%   This function is optimized for expanding multiple values simultaneously
+%   over a shared exponent lattice.
+%
+%   Inputs:
+%       sVals          - An L-element symbolic vector of values to expand.
+%       exponents      - A 1xM numeric vector of descending exponents that
+%                        define the sampling positions.
+%       precisionOrder - A non-negative integer that specifies the depth of
+%                        negative exponents. This is primarily for validation
+%                        and logging.
+%       baseRadix      - The numeral base (radix) for the expansion.
+%                        Must be a numeric scalar greater than 1.
+%       mode           - A string specifying the expansion mode:
+%                        'digits'   : Return integer digits at each position.
+%                        'residual' : Return normalized residual values
+%                                     in the range [0, 1) at each position.
+%
+%   Outputs:
+%       digitsOrResiduals - An LxM numeric matrix where each row corresponds
+%                           to the expansion of an element from sVals.
+%
+%   Example:
+%       % Expand sqrt(123) and sqrt(456) in base 10
+%       s = [sqrt(sym(123)); sqrt(sym(456))];
+%       exponents = 1:-1:-2; % From 10^1 down to 10^-2
+%       digits = ExpoExpand(s, exponents, 2, 10, 'digits');
+%       % The first row of 'digits' will be the base-10 digits of sqrt(123)
+%       % corresponding to the exponents.
 
 arguments
     sVals {mustBeNonempty}

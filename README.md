@@ -1,191 +1,168 @@
-SchizoVis (v4.0)
-=================
+# SchizoVis (v4.0)
 
-Author: Maziar Moussavi  
-Current Version: 4.0.1 (2025-08-28)  
-Languages: MATLAB (core algorithms + visualization)
+**Author**: Maziar Moussavi
+**Current Version**: 4.0.1 (2025-08-28)
+**Languages**: MATLAB
 
-Summary
--------
-SchizoVis visualizes the evolving square root of the "schizophrenic number" sequence:
+## Summary
 
-  f(0) = 0,  f(k) = b * f(k-1) + k
+SchizoVis is a MATLAB project for visualizing the mathematical structure of the "schizophrenic number" sequence. This sequence is defined by the recurrence relation:
 
-Where b = baseRadix (user selectable, b >= 2). For base 10 this is ordinary decimal concatenation of 1..k. For other bases it generalizes the process into base-b digit append operations. The project extracts layered digit (or residual) structure of sqrt(f(n)) across a controlled exponent window, mapping digits to polar coordinates and stacking layers (n values) in Z. It also supports exporting progressive videos and grid digit images.
+f(0) = 0, f(k) = b * f(k-1) + k
 
-What's New in v4.0
-------------------
+where `b` is a user-selectable `baseRadix` (>= 2). In base 10, this is equivalent to concatenating the integers 1, 2, 3, ... k. SchizoVis generalizes this to any base, including non-integer "beta" bases.
 
-Major release focusing on generalized bases, performance, and unified multi‑n visualization:
+The project provides tools to:
+*   Generate the sequence and its square root using symbolic math to maintain precision.
+*   Expand the square root into its digit or residual representation in the chosen base.
+*   Visualize the resulting digit patterns as stacked polar plots or grid images.
 
-* Full non‑integer (beta) base support end‑to‑end (generation, expansion, polar & grid views).
-* Vectorized shared exponent lattice expansion across multiple sqrt values (`ExpoExpand`).
-* Combined multi‑n grid view (one row per n) with aligned integer parts; digits or residual modes.
-* High‑resolution colormap pipeline (always 256 base entries) for stable appearance at small bases.
-* `GridDigitVis` figure & handle management (`Figure`, `FigureName`, `Tag`, returned handle struct).
-* `ColorScale` option (`linear` / `exponential`) for residual emphasis.
-* Unified integer colorbar ticks (0..floor(baseRadix)-1) across modes; simplified plain‑text titles.
+## What's New in v4.0
 
-Previous: What's New in v3
------------------
+This major release focuses on generalized bases, performance, and unified multi-n visualization:
 
-v3 refactors the exploratory v1/v2 scripts into modular, testable components:
+*   **Full Non-Integer (Beta) Base Support**: End-to-end support for non-integer bases in generation, expansion, and visualization.
+*   **Vectorized Expansion**: The `ExpoExpand` function efficiently expands multiple square root values over a shared exponent lattice.
+*   **Unified Multi-n Grid View**: A combined grid view that displays multiple `n` values as rows with aligned integer parts, available in both 'digits' and 'residual' modes.
+*   **High-Resolution Colormap Pipeline**: Ensures stable and consistent color appearance, especially for small bases.
+*   **Enhanced Figure Management**: `GridDigitVis` now offers better control over figures with options like `Figure`, `FigureName`, `Tag`, and returns a handle structure.
+*   **Exponential Color Scaling**: A `ColorScale` option (`linear` or `exponential`) for emphasizing residuals.
+*   **Unified Colorbar Ticks**: Integer colorbar ticks (0..floor(baseRadix)-1) across all modes and simplified plain-text titles.
 
-* Modular functions in `src/`: `SchizoGen`, `ExpoExpand`, `PolarDigitVis`, `GridDigitVis`.
-* Efficient vectorized expansion of multiple sqrt values across a shared exponent lattice (`ExpoExpand`).
-* Generalized numeral base (any real beta >= 2). For non-integer beta a beta-expansion with digit alphabet 0..floor(beta)-1 is used.
-* Two visualization modalities: stacked polar digit/residual plot and square grid digit/residual image export (shared `mode`).
-* Optional dynamic coloring & sliding window video rendering.
-* Cleaner separation between generation, expansion, and rendering stages.
-* Basic MATLAB unit tests under `tests/`.
-
-Repository Structure
---------------------
+## Repository Structure
 
 ```text
-README.md                Project overview & usage
-LICENSE                  License (MIT by default – adjust if needed)
-.gitignore               Ignore rules (figures, videos, temp, artifacts)
-setup.m                  Convenience path setup helper
-src/                     Core library functions
-  SchizoGen.m
-  ExpoExpand.m
-  PolarDigitVis.m
-  GridDigitViz.m
-examples/                Runnable example / driver scripts
-  SchizoViz_demo_v3.m
-legacy/                  Historical versions (unaltered except header notes)
-  SchizoViz-v1.m
-  SchizoViz-v2.m
-docs/                    Additional documentation & change log
-  CHANGELOG.md
-outputs/                 (gitignored) Figures, videos, exported images
-tests/                   MATLAB unit tests (run with runtests)
-  testSchizoGen.m
-  testExpoExpand.m
+.
+├── README.md                # Project overview and usage guide
+├── LICENSE                  # Project license
+├── .gitignore               # Files and directories to be ignored by Git
+├── setup.m                  # MATLAB script to set up the project path
+├── src/                     # Core library functions
+│   ├── SchizoGen.m          # Generates the schizophrenic number sequence
+│   ├── ExpoExpand.m         # Expands symbolic values into digits/residuals
+│   ├── PolarDigitVis.m      # Creates stacked polar digit plots
+│   └── GridDigitVis.m       # Creates grid-based digit visualizations
+├── examples/                # Runnable example and driver scripts
+│   └── SchizoViz_demo_v3.m
+├── legacy/                  # Historical versions of the project
+├── docs/                    # Additional documentation and changelog
+├── outputs/                 # (Git-ignored) Default directory for figures and videos
+└── tests/                   # MATLAB unit tests
 ```
 
-Quick Start
------------
+## Quick Start
 
-1. Clone the repository:
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/MahZadYar/SchizoVis.git
+    ```
+2.  **Run the setup script in MATLAB:**
+    From the repository's root directory in MATLAB, run:
+    ```matlab
+    setup
+    ```
+    This will add the `src` directory to your MATLAB path.
+3.  **Run the demo:**
+    Open and run the main demonstration script to see SchizoVis in action:
+    ```matlab
+    examples/SchizoViz_demo_v3.m
+    ```
+4.  **Customize and Explore:**
+    Adjust the parameters at the top of the demo script (e.g., `n` range, `baseRadix`, `precisionOrder`) to explore different visualizations. The generated images and videos will be saved in the `outputs` directory.
 
-```bash
-git clone https://github.com/MahZadYar/SchizoVis.git
-```
+## Core Concepts
 
-1. In MATLAB, from the repo root run:
+### 1. Sequence Construction (`SchizoGen`)
+
+The `SchizoGen` function is the starting point of the workflow. It takes a vector of `n` values and a `baseRadix` and generates the corresponding f(n) and sqrt(f(n)) values. By using MATLAB's Symbolic Math Toolbox, it avoids numerical precision loss, which is crucial for the deep analysis of the digit patterns.
+
+### 2. Exponent Lattice
+
+To analyze the digits of the square root values, a shared grid of exponents is created. This "exponent lattice" is a descending vector of exponents that defines the positions (powers of the base) at which the digits or residuals are sampled. This ensures that the expansions for different `n` values are aligned and comparable.
+
+### 3. Batch Expansion (`ExpoExpand`)
+
+`ExpoExpand` is the computational core of the project. It takes the symbolic square root values from `SchizoGen` and expands them into a matrix of digits or residuals. It is highly vectorized to process multiple values in a batch, making it efficient. The `mode` parameter controls whether the output is discrete digits (`'digits'`) or continuous, normalized residuals (`'residual'`).
+
+### 4. Visualization
+
+SchizoVis offers two primary visualization modalities:
+
+*   **Polar Mapping (`PolarDigitVis`)**: This function creates a "clock-like" radial plot. The radius corresponds to the exponent, and the angle corresponds to the digit value. When visualizing multiple `n` values, the plots are stacked in 3D. In residual mode, the color of each point represents the residual magnitude.
+
+*   **Grid Digit Image (`GridDigitVis`)**: This function generates a rectangular image where each pixel corresponds to a digit. When multiple `n` values are provided, they are rendered as rows in the image, with their integer parts aligned. This is useful for observing how the digit patterns evolve as `n` increases.
+
+## Function Overview
+
+The `src` directory contains the core functions of SchizoVis:
+
+*   `SchizoGen(n, baseRadix)`: Generates the symbolic f(n) and sqrt(f(n)) values.
+*   `ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode)`: Expands the symbolic square root values into a matrix of digits or residuals.
+*   `PolarDigitVis(exponents, digitsMat, baseRadix, varargin)`: Creates a stacked polar visualization of the digit matrix.
+*   `GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)`: Creates a grid-based image visualization of the digit matrix.
+
+## Minimal Example
+
+Here is a minimal script to generate and visualize a SchizoVis plot:
 
 ```matlab
-setup
-```
+% --- Parameters ---
+nMin = 1;
+nMax = 101;
+nStepSize = 2;
+baseRadix = 12;         % The numeral base for the sequence
+precisionOrder = 1500;  % The depth of fractional exponents to sample
+mode = "digits";        % "digits" or "residual"
 
-1. Open and run the example:
-
-```matlab
-examples/SchizoViz_demo_v3.m
-```
-
-1. Adjust parameters near the top (n range, baseRadix, precisionOrder, export toggles).
-
-Core Concepts
--------------
-
-1. Sequence Construction (`SchizoGen`): Builds symbolic f(n) and sqrt(f(n)) without premature numeric rounding.
-2. Exponent Lattice: A shared descending exponent vector is constructed from the largest sqrt value; defines digit sampling positions.
-3. Batch Expansion (`ExpoExpand`): Vectorized extraction of either discrete digits (`mode="digits"`) or normalized residual values (`mode="residual"`).
-4. Polar Mapping (`PolarDigitVis`): Maps each digit to an angular slot; in residual mode color encodes residual magnitude (0–1).
-5. Grid Digit Image (`GridDigitVis`): Renders either digit categories or residual magnitudes (0–1) depending on `mode`.
-
-Example (Minimal)
------------------
-
-```matlab
-nMin = 1; nMax = 101; nStepSize = 2;
-baseRadix = 12; precisionOrder = 1500; mode = "digits"; % or "residual"
+% --- Generate the sequence ---
 nList = nMin:nStepSize:nMax;
 [fVals, sVals] = SchizoGen(nList, baseRadix);
+
+% --- Create the exponent lattice ---
 p_min = -abs(precisionOrder);
 global_p_max = ceil(double(log(vpa(sVals(end)))/log(baseRadix)));
 exponents = global_p_max:-1:p_min;
+
+% --- Expand the values ---
 digitsMat = ExpoExpand(sVals, exponents, precisionOrder, baseRadix, mode);
+
+% --- Visualize the result ---
 PolarDigitVis(exponents, digitsMat, baseRadix, 'Title', 'SchizoVis Sample');
 ```
 
-Parameter Notes
----------------
+## Parameter Notes
 
-* nMin, nMax, nStepSize: Define sampled n values.
-* baseRadix (b): Controls the digit alphabet size and angular segmentation.
-* precisionOrder: The negative depth (|p_min|) of fractional exponent sampling.
-* mode: "digits" uses floor at each exponent; "residual" keeps normalized residual values in [0,1) yielding smooth gradients (polar & grid).
-* exportFigure / exportVideo toggle resource-heavy exports (legacy exportNumber removed; derive numbers from digit matrices if needed).
+*   `nMin`, `nMax`, `nStepSize`: These parameters define the range of `n` values to be sampled. Larger `n` values require more memory and computation time.
+*   `baseRadix`: The numeral base, `b`. This can be any number greater than 1, including non-integers. It controls the digit alphabet size and the angular segmentation in the polar plot.
+*   `precisionOrder`: This determines the negative depth of the exponent lattice (i.e., how many fractional digits are computed). Larger values provide a more detailed view of the fractional part but increase memory usage.
+*   `mode`: This can be `'digits'` or `'residual'`.
+    *   `'digits'`: The expansion returns integer digits, resulting in discrete color values in the visualizations.
+    *   `'residual'`: The expansion returns normalized residual values in the range [0, 1), resulting in smooth color gradients.
 
-Performance Tips
-----------------
+## Performance Tips
 
-* Large precisionOrder or large nMax -> high memory; monitor `digitsMat` size (L x M).
-* `ExpoExpand` auto-inflates decimal precision with guard digits; if validation reveals mismatches, increase guard or reduce precision scope. Residual mode is slightly more expensive computationally.
-* Video exports (lossless AVI) can become very large; switch to MPEG-4 when acceptable.
+*   The size of `digitsMat` (L x M) can become very large with a high `precisionOrder` or a large number of `n` values. Monitor memory usage accordingly.
+*   `ExpoExpand` includes a validation step that may issue warnings if precision mismatches are detected. If this occurs, you may need to adjust the precision parameters.
+*   Video exports can generate very large files. For smaller file sizes, consider using a compressed format like MPEG-4 if lossless quality is not required.
 
-Testing
--------
+## Testing
 
-Run all tests:
+To run the suite of unit tests, execute the following in MATLAB:
 
 ```matlab
 results = runtests('tests');
 table(results)
 ```
 
-Add additional tests following MATLAB's `matlab.unittest` patterns.
+## Contributing
 
-Outputs
--------
+Contributions are welcome! Please follow these steps:
 
-All exported PNG/AVI/MP4 files should be directed to `outputs/` (default in example script uses an absolute path; change it to `fullfile(pwd,'outputs')` for portability).
+1.  Open an issue to describe the bug or enhancement.
+2.  Fork the repository and create a feature branch.
+3.  Add or extend tests to cover your changes.
+4.  Submit a pull request that references the issue.
 
-Version History (Summary)
--------------------------
+## License
 
-See `docs/CHANGELOG.md` for detailed entries.
-
-* v1: Initial monolithic script (decimal only, per-layer loops, early 3D scatter & video sweep).
-* v2: Vectorized digit extraction, generalized base parameter, improved guide overlays.
-* v3: Modularization, batch exponent expansion, grid digit/residual image export, dynamic video coloring, repository hygiene.
-
-Planned / Ideas
----------------
-
-* Optional GPU acceleration (prototype flag in v2; not active in v3).
-* Interactive UI (App Designer) for parameter sweeping.
-* Export to WebGL (e.g., Plotly) for browser sharing.
-* Python translation (SymPy + Matplotlib / Plotly) for broader accessibility.
-
-Citation
---------
-
-If you use SchizoVis (formerly SchizoViz) in research or publications, please cite (CITATION.cff provided):
-
-Moussavi, M. (2025). SchizoVis (Version 3). GitHub repository: [https://github.com/MahZadYar/SchizoVis](https://github.com/MahZadYar/SchizoVis)
-
-License
--------
-
-MIT License (modifiable). See `LICENSE`.
-
-Contributing
-------------
-
-1. Open an issue describing enhancement / bug.
-2. Fork and create a feature branch.
-3. Add/extend tests for changes.
-4. Submit PR referencing the issue.
-
-Acknowledgements
-----------------
-
-Developed by Maziar Moussavi. Assisted organization & documentation support by AI pairing (GitHub Copilot style).
-
----
-Enjoy exploring digit structures across numeral bases!
+This project is licensed under the MIT License. See the `LICENSE` file for details.
