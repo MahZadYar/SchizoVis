@@ -1,21 +1,50 @@
 function [outPath, hStruct] = GridDigitVis(symVal, baseRadix, outFile, nVal, varargin)
-% GridDigitViz  Visualize a (possibly non-integer) symbolic number in base-R as a pixel image.
-% Each digit (integer part + optional fractional part) becomes one pixel colored via a colormap.
-% outPath = GridDigitViz(symVal, baseRadix, outFile, nVal, Name,Value...)
+%GRIDDIGITVIS Visualize a symbolic value as a grid of base-radix digits.
+%   [outPath, hStruct] = GridDigitVis(symVal, baseRadix, outFile, nVal, Name, Value...)
+%   generates a grid-based visualization of a symbolic number (symVal) in
+%   a specified base (baseRadix). Each digit of the number is represented
+%   by a colored pixel in an image. The function can handle both integer
+%   and fractional parts of the number and supports multiple visualization
+%   modes.
 %
-% Name-Value options:
-%   'FractionDigits' : number of fractional base-R digits (default 0)
-%   'Colormap'       : colormap name or Nx3 matrix (default parula(baseRadix))
-%   'Transparent'    : true/false PNG transparency (default false)
-%   'Title'          : custom title string (auto if empty)
-%   'PadValue'       : value used for padding (NaN => transparent gaps) (default NaN)
-%   'Square'         : true to force square layout (default true)
-%   'Show'           : show figure (default false)
-%   'MaxSide'        : target figure side in pixels (default 1000)
-%   'Mode'           : 'digits' (default) or 'residual' (continuous base expansion values)
-%   'ColorScale'     : 'linear' (default) or 'exponential' - mapping for continuous residual colormap
+%   Inputs:
+%       symVal    - The symbolic value (or a vector of values) to visualize.
+%       baseRadix - The numeral base (radix) for the digit expansion.
+%       outFile   - Optional. Path to save the output image. If empty, no
+%                   file is saved.
+%       nVal      - The integer n associated with symVal, used for titling.
 %
-% NOTE: For very large integer parts this performs symbolic division; may be slow.
+%   Name-Value Pair Arguments:
+%       'FractionDigits' - Integer specifying the number of fractional
+%                          digits to include. Default is 0.
+%       'Colormap'       - A colormap name (e.g., 'parula') or an Nx3 matrix
+%                          of RGB values.
+%       'Transparent'    - Logical true or false to enable a transparent
+%                          background for PNG export. Default is false.
+%       'Title'          - A custom title string for the plot. If empty, a
+%                          default title is generated.
+%       'PadValue'       - The value used for padding empty pixels in the
+%                          grid. NaN results in transparent padding. Default is NaN.
+%       'Square'         - Logical true to force a square layout for single
+%                          value visualizations. Default is true.
+%       'Show'           - Logical true to display the figure window.
+%                          Default is false.
+%       'MaxSide'        - The maximum side length of the figure in pixels.
+%                          Default is 1000.
+%       'Mode'           - 'digits' or 'residual'. In 'digits' mode, pixels
+%                          are colored based on integer digit values. In
+%                          'residual' mode, colors represent the continuous
+%                          residual values. Default is 'residual'.
+%       'ColorScale'     - 'linear' or 'exponential'. Controls the color
+%                          mapping for 'residual' mode. Default is 'exponential'.
+%       'Figure'         - A handle to an existing figure to reuse.
+%       'FigureName'     - A name for the figure window.
+%       'Tag'            - A tag for the figure object.
+%
+%   Outputs:
+%       outPath   - The path to the saved image file, or empty if not saved.
+%       hStruct   - A struct containing handles to the figure, axes, image,
+%                   and colorbar objects.
 
 opts.FractionDigits = 0;
 opts.Colormap = [];

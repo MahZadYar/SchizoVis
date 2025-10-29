@@ -1,7 +1,37 @@
 function [fVals, sVals] = SchizoGen(n, baseRadix)
-% SchizoGen Build concatenated integer(s) 1..n (symbolic only)
-% f(0)=0, f(k)=baseRadix*f(k-1)+k. Accepts scalar or vector n.
-% Returns symbolic f(n) values and symbolic sqrt(f(n)); no vpa here.
+%SCHIZOGEN Build concatenated integer sequence f(n) and its square root.
+%   [fVals, sVals] = SchizoGen(n, baseRadix) generates the "schizophrenic
+%   number" sequence f(n) and its symbolic square root s(n) = sqrt(f(n)).
+%   The sequence is defined by the recurrence relation:
+%     f(0) = 0
+%     f(k) = baseRadix * f(k-1) + k
+%   This is equivalent to concatenating the digits of integers 1 through n
+%   in a base specified by baseRadix.
+%
+%   The function uses symbolic computation to avoid premature rounding,
+%   returning exact symbolic expressions for f(n) and its square root. It is
+%   vectorized to handle multiple values of n efficiently.
+%
+%   Inputs:
+%       n         - A scalar or vector of positive integers.
+%       baseRadix - The numeral base (radix) to use for the sequence.
+%                   Must be a numeric scalar greater than 1. Default is 10.
+%
+%   Outputs:
+%       fVals     - A symbolic array of the same size as n, containing the
+%                   values of f(n).
+%       sVals     - A symbolic array of the same size as n, containing the
+%                   symbolic square roots of f(n).
+%
+%   Example:
+%       % Calculate f(3) and its square root in base 10
+%       [f3, s3] = SchizoGen(3, 10);
+%       % f3 will be the symbolic representation of 123
+%       % s3 will be the symbolic representation of sqrt(123)
+%
+%       % Calculate for a vector of n values in base 2
+%       n_vector = [1, 2, 3, 4];
+%       [f_binary, s_binary] = SchizoGen(n_vector, 2);
 
 arguments
     n double {mustBePositive}
